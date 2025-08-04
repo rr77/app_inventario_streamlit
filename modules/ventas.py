@@ -125,8 +125,16 @@ def ventas_module():
 
     if archivo:
         try:
+            # Algunos archivos exportados del POS tienen la primera fila vacía y
+            # los nombres de columnas en la segunda fila. Intentamos cargar el
+            # Excel normalmente y, si no encontramos la columna "categoria",
+            # volvemos a leer usando la segunda fila como cabecera.
             df_ventas = pd.read_excel(archivo)
-            cat_col = next((c for c in df_ventas.columns if c.lower() == "categoria"), None)
+            cat_col = next((c for c in df_ventas.columns if c.lower().strip() == "categoria"), None)
+            if cat_col is None:
+                # Reintenta asumiendo que la cabecera está en la segunda fila
+                df_ventas = pd.read_excel(archivo, header=1)
+                cat_col = next((c for c in df_ventas.columns if c.lower().strip() == "categoria"), None)
             if cat_col is None:
                 st.error("El archivo de ventas debe tener una columna 'categoria'.")
                 return
