@@ -152,7 +152,7 @@ def ventas_module():
                     st.dataframe(df_procesado)
                     st.download_button(
                         label="Descargar consumo teórico procesado",
-                        data=df_procesado.to_excel(index=False, engine="xlsxwriter"),
+                        data=to_excel_bytes(df_procesado),
                         file_name=output_file,
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     )
