@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import os
 from datetime import datetime
+from utils.excel_tools import to_excel_bytes
 
 CATALOGO_PATH = "catalogo/catalogo.xlsx"
 ENTRADAS_FOLDER = "entradas/"
@@ -21,7 +22,7 @@ def save_entrada(df, fecha):
     df_new.to_excel(path, index=False)
 
 def show_latest_entradas():
-    """Muestra las últimas 10 entradas cargadas (de los archivos más recientes)."""
+    """Muestra las últimas 5 entradas cargadas (de los archivos más recientes)."""
     archivos = [f for f in os.listdir(ENTRADAS_FOLDER) if f.endswith('.xlsx')]
     archivos = sorted(archivos, reverse=True)
     dfs = []
@@ -90,5 +91,11 @@ def entradas_module():
     df_hist = show_latest_entradas()
     if not df_hist.empty:
         st.dataframe(df_hist)
+        st.download_button(
+            label="Descargar últimas entradas (Excel)",
+            data=to_excel_bytes(df_hist),
+            file_name="ultimas_entradas.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
     else:
         st.info("No hay entradas registradas todavía.")

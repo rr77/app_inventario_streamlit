@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import os
 from glob import glob
+from utils.excel_tools import to_excel_bytes  # <-- AGREGA ESTA LÍNEA
 
 CARPETAS = {
     "Entradas": "entradas/",
@@ -88,7 +89,7 @@ def historial_module():
 
     st.download_button(
         label="Descargar historial filtrado (Excel)",
-        data=df_filtrado.to_excel(index=False, engine='xlsxwriter'),
+        data=to_excel_bytes(df_filtrado),
         file_name="historial_filtrado.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
@@ -108,5 +109,3 @@ def historial_module():
                             file_name=os.path.basename(archivo),
                             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                         )
-
-                        

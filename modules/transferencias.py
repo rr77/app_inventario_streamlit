@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import os
+from utils.excel_tools import to_excel_bytes  # <-- AGREGA ESTA LÍNEA
 
 TRANSFERENCIAS_FOLDER = "transferencias/"
 
@@ -54,7 +55,7 @@ def transferencias_module():
 
     st.download_button(
         label="Descargar transferencias filtradas (Excel)",
-        data=filtro_df.to_excel(index=False, engine='xlsxwriter'),
+        data=to_excel_bytes(filtro_df),
         file_name="transferencias_filtradas.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )

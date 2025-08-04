@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import os
 from datetime import datetime
+from utils.excel_tools import to_excel_bytes  # <-- AGREGA ESTA LÍNEA
 
 CATALOGO_PATH = "catalogo/catalogo.xlsx"
 PLANTILLAS_FOLDER = "plantillas/"
@@ -46,16 +47,18 @@ def plantilla_module():
     nombre_archivo = f"plantilla_conteo_{datetime.today().strftime('%Y-%m-%d')}.xlsx"
     ruta = os.path.join(PLANTILLAS_FOLDER, nombre_archivo)
 
-    # Guardar por si acaso, aunque la app permite descargar directo
+    # Guardar el archivo plantilla, aunque la app permite descargar directo
     df_plantilla.to_excel(ruta, index=False)
 
     st.dataframe(df_plantilla.head(12))
+
     st.download_button(
         label="Descargar plantilla Excel",
-        data=df_plantilla.to_excel(index=False, engine='xlsxwriter'),
+        data=to_excel_bytes(df_plantilla),
         file_name=nombre_archivo,
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
+
     st.info("""
         **Columnas de la plantilla:**
         - Fecha
@@ -67,4 +70,3 @@ def plantilla_module():
         - Conteo Cierre
         - Observaciones
     """)
-    

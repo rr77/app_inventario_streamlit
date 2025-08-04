@@ -2,12 +2,12 @@ import streamlit as st
 import pandas as pd
 import os
 from datetime import datetime
+from utils.excel_tools import to_excel_bytes  # Agrega esta línea
 
 CATALOGO_PATH = "catalogo/catalogo.xlsx"
 RECETAS_PATH = "recetas/recetas.xlsx"
 VENTAS_PROCESADAS_FOLDER = "ventas_procesadas/"
 
-# Subcategorías que se despachan desde Vinera
 VINERA_SUBCATEGORIAS = set([
     "Blancos", "Tintos", "Espumantes", "Rosados", "Spirits & Wine"
 ])
@@ -22,10 +22,8 @@ def load_recetas():
     return recetas, reglas
 
 def inferir_ubicacion(row, catalogo):
-    """Dado un producto vendido, revisa la subcategoría del catálogo y asigna ubicación."""
     prod = row["Producto vendido"]
     subcat = ""
-    # Busca subcategoría en catálogo
     info = catalogo[catalogo["Item"] == prod]
     if not info.empty:
         subcat = str(info.iloc[0]["Subcategoría"])
@@ -35,7 +33,6 @@ def inferir_ubicacion(row, catalogo):
         return "Barra"
 
 def procesar_ventas(df_ventas, df_recetas, df_reglas, catalogo, fecha_asignada):
-    # Mapea columnas de tu POS
     if "Producto vendido" not in df_ventas.columns:
         if "Item" in df_ventas.columns:
             df_ventas["Producto vendido"] = df_ventas["Item"]
@@ -46,12 +43,11 @@ def procesar_ventas(df_ventas, df_recetas, df_reglas, catalogo, fecha_asignada):
         if "C. Vendida" in df_ventas.columns:
             df_ventas["Cantidad vendida"] = df_ventas["C. Vendida"]
         else:
-            df_ventas["Cantidad vendida"] = 1 # Por defecto
+            df_ventas["Cantidad vendida"] = 1
 
     if "Fecha" not in df_ventas.columns:
         df_ventas["Fecha"] = fecha_asignada
 
-    # Asigna la ubicación según subcategoría (regla especial)
     df_ventas["Ubicación de salida"] = df_ventas.apply(lambda r: inferir_ubicacion(r, catalogo), axis=1)
 
     result = []
@@ -76,7 +72,6 @@ def procesar_ventas(df_ventas, df_recetas, df_reglas, catalogo, fecha_asignada):
                     "Ubicación de salida": ubic
                 })
         else:
-            # Buscar por ReglasEst usando subcategoría del catálogo
             item_info = catalogo[catalogo["Item"] == prod_vendido]
             if not item_info.empty:
                 subcat = item_info.iloc[0]["Subcategoría"]
@@ -137,7 +132,7 @@ def ventas_module():
                     st.dataframe(df_procesado)
                     st.download_button(
                         label="Descargar consumo teórico procesado",
-                        data=df_procesado.to_excel(index=False, engine='xlsxwriter'),
+                        data=to_excel_bytes(df_procesado),
                         file_name=output_file,
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                     )
