@@ -46,13 +46,15 @@ def procesar_ventas(df_ventas, df_recetas, df_reglas, catalogo, fecha_asignada):
         if "C. Vendida" in df_ventas.columns:
             df_ventas["Cantidad vendida"] = df_ventas["C. Vendida"]
         else:
-            df_ventas["Cantidad vendida"] = 1 # Por defecto
+            df_ventas["Cantidad vendida"] = 1  # Por defecto
 
     if "Fecha" not in df_ventas.columns:
         df_ventas["Fecha"] = fecha_asignada
 
     # Asigna la ubicación según subcategoría (regla especial)
-    df_ventas["Ubicación de salida"] = df_ventas.apply(lambda r: inferir_ubicacion(r, catalogo), axis=1)
+    df_ventas["Ubicación de salida"] = df_ventas.apply(
+        lambda r: inferir_ubicacion(r, catalogo), axis=1
+    )
 
     result = []
     for idx, row in df_ventas.iterrows():
@@ -100,8 +102,8 @@ def ventas_module():
         El sistema calculará el consumo teórico de inventario usando las recetas y registrará todo en `/ventas_procesadas/`.
         El archivo POS puede tener cualquier cabecera: mapea automáticamente las columnas relevantes.
 
-        **Regla de ubicación de salida:**  
-        Si la subcategoría es Blancos, Tintos, Espumantes, Rosados o Spirits & Wine: Vinera.  
+        **Regla de ubicación de salida:**
+        Si la subcategoría es Blancos, Tintos, Espumantes, Rosados o Spirits & Wine: Vinera.
         Si no: Barra.
         """
     )
@@ -112,13 +114,15 @@ def ventas_module():
         return
 
     df_recetas, df_reglas = load_recetas()
-    st.markdown("""
+    st.markdown(
+        """
     **El archivo POS puede tener estas columnas:**
     - Item (producto vendido)
     - C. Vendida (cantidad vendida)
     - (Opcional) Ubicación de salida
     - (Opcional) Fecha (si no, se asigna aquí)
-    """)
+    """
+    )
 
     fecha = st.date_input("Selecciona la fecha de las ventas", value=datetime.today())
     archivo = st.file_uploader("Selecciona archivo Excel de ventas POS...", type=["xlsx"])
@@ -126,6 +130,13 @@ def ventas_module():
     if archivo:
         try:
             df_ventas = pd.read_excel(archivo)
+            cat_col = next((c for c in df_ventas.columns if c.lower() == "categoria"), None)
+            if cat_col is None:
+                st.error("El archivo de ventas debe tener una columna 'categoria'.")
+                return
+            df_ventas = df_ventas[
+                df_ventas[cat_col].astype(str).str.strip().str.lower() == "licores"
+            ]
             st.dataframe(df_ventas)
             if st.button("Procesar ventas y calcular consumo teórico"):
                 df_procesado = procesar_ventas(df_ventas, df_recetas, df_reglas, catalogo, fecha)
@@ -137,11 +148,12 @@ def ventas_module():
                     st.dataframe(df_procesado)
                     st.download_button(
                         label="Descargar consumo teórico procesado",
-                        data=df_procesado.to_excel(index=False, engine='xlsxwriter'),
+                        data=df_procesado.to_excel(index=False, engine="xlsxwriter"),
                         file_name=output_file,
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     )
                 else:
                     st.warning("No se procesó ninguna venta. ¿Están las recetas/reglas bien definidas?")
         except Exception as e:
             st.error(f"Error procesando archivo de ventas: {e}")
+
