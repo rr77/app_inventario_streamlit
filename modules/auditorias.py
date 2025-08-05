@@ -141,7 +141,7 @@ def auditoria_cierre():
     )
     if archivo and st.button("Procesar auditoría de cierre"):
         df = pd.read_excel(archivo)
-        requeridas = ["Fecha", "Item", "Subcategoría", "Conteo Apertura", "Conteo Cierre"]
+        requeridas = ["Fecha", "Item", "Subcategoría", "Conteo Cierre"]
         if ubic_sel == "General":
             requeridas.append("Ubicación")
         for req in requeridas:
@@ -153,13 +153,39 @@ def auditoria_cierre():
         if "Requisicion" not in df.columns:
             df["Requisicion"] = 0
 
+        # Intentar cargar la auditoría de apertura correspondiente
+        apertura_arch = os.path.join(
+            AUDITORIA_AP_FOLDER,
+            f"auditoria_apertura_{fecha.strftime('%Y-%m-%d')}.xlsx",
+        )
+        if os.path.exists(apertura_arch):
+            df_open = pd.read_excel(apertura_arch)
+            if "Conteo Apertura" in df.columns:
+                df = df.drop(columns=["Conteo Apertura"])
+            df = df.merge(
+                df_open[["Item", "Ubicación", "Conteo Apertura"]],
+                on=["Item", "Ubicación"],
+                how="left",
+            )
+            df["Conteo Apertura"] = df["Conteo Apertura"].fillna(0)
+        else:
+            df_open = pd.DataFrame(columns=["Item", "Ubicación", "Conteo Apertura"])
+            df["Conteo Apertura"] = 0
+            st.info(
+                "No se encontró auditoría de apertura para la fecha; se asume Conteo Apertura = 0."
+            )
+
         cat_path = latest_file(CATALOGO_DIR, "catalogo")
         if not cat_path or not os.path.exists(cat_path):
             st.error("No se encontró el catálogo para validar unidades.")
             return
         cat = pd.read_excel(cat_path)
-        for col in ["Conteo Apertura", "Conteo Cierre", "Requisicion"]:
+        for col in ["Conteo Cierre", "Requisicion"]:
             df[col] = df.apply(lambda r: to_ml(r["Item"], r[col], cat), axis=1)
+        if "Conteo Apertura" in df.columns:
+            df["Conteo Apertura"] = df.apply(
+                lambda r: to_ml(r["Item"], r["Conteo Apertura"], cat), axis=1
+            )
 
         registrar_requisiciones(df, fecha.strftime("%Y-%m-%d"))
 
