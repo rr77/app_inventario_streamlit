@@ -2,14 +2,13 @@ import streamlit as st
 import pandas as pd
 import os
 from utils.excel_tools import to_excel_bytes
-
-
-CATALOGO_PATH = "catalogo/catalogo.xlsx"
+from utils.path_utils import CATALOGO_DIR, latest_file
 
 def load_catalog():
     """Carga el catálogo de productos desde Excel."""
-    if os.path.exists(CATALOGO_PATH):
-        df = pd.read_excel(CATALOGO_PATH)
+    path = latest_file(CATALOGO_DIR, "catalogo")
+    if path and os.path.exists(path):
+        df = pd.read_excel(path)
     else:
         # Si el catálogo no existe, retorna DataFrame vacío con columnas esperadas
         df = pd.DataFrame(columns=["Item", "Subcategoría", "Tipo de unidad", "Cantidad por unidad"])
@@ -19,8 +18,8 @@ def catalogo_module():
     st.title("Catálogo de Productos")
     st.info("""
     El catálogo de productos define todos los ítems únicos en inventario.
-    ✏️ **La edición del catálogo se realiza desde Excel:**  
-    por favor edita `catalogo/catalogo.xlsx` manualmente fuera de la app.
+    ✏️ **La edición del catálogo se realiza desde Excel:**
+    por favor edita el archivo más reciente en `data/catalogo/` manualmente fuera de la app.
 
     Aquí puedes consultar y exportar el catálogo actual para uso operativo y validación.
     """)

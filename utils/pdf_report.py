@@ -2,8 +2,9 @@ from fpdf import FPDF
 import pandas as pd
 import os
 from datetime import datetime
+from utils.path_utils import REPORTES_PDF_DIR
 
-LOGO_PATH = "reportes_pdf/logo.png"  # Cambia esto si tu logo está en otra ubicación
+LOGO_PATH = os.path.join(REPORTES_PDF_DIR, "logo.png")  # Cambia esto si tu logo está en otra ubicación
 
 class PDF(FPDF):
     def header(self):

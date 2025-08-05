@@ -3,9 +3,9 @@ import pandas as pd
 import os
 from datetime import datetime
 from utils.excel_tools import to_excel_bytes
+from utils.path_utils import CATALOGO_DIR, ENTRADAS_DIR, latest_file
 
-CATALOGO_PATH = "catalogo/catalogo.xlsx"
-ENTRADAS_FOLDER = "entradas/"
+ENTRADAS_FOLDER = ENTRADAS_DIR
 
 def save_entrada(df, fecha):
     """
@@ -41,12 +41,13 @@ def show_latest_entradas():
 def entradas_module():
     st.title("Registro de Entradas a Inventario")
     st.info("""
-    Aquí puedes registrar productos que ingresan al inventario.  
-    Puedes hacerlo manualmente o cargando un archivo Excel.  
-    Todos los registros quedan almacenados en la carpeta `/entradas/` para respaldo y auditoría.
+    Aquí puedes registrar productos que ingresan al inventario.
+    Puedes hacerlo manualmente o cargando un archivo Excel.
+    Todos los registros quedan almacenados en la carpeta `data/entradas/` para respaldo y auditoría.
     """)
 
-    cat = pd.read_excel(CATALOGO_PATH)
+    cat_path = latest_file(CATALOGO_DIR, "catalogo")
+    cat = pd.read_excel(cat_path) if cat_path and os.path.exists(cat_path) else pd.DataFrame()
     if cat.empty:
         st.warning("El catálogo está vacío. Debes cargar productos primero en el catálogo.")
         return

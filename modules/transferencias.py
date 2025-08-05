@@ -2,8 +2,9 @@ import streamlit as st
 import pandas as pd
 import os
 from utils.excel_tools import to_excel_bytes  # <-- AGREGA ESTA LÍNEA
+from utils.path_utils import TRANSFERENCIAS_DIR
 
-TRANSFERENCIAS_FOLDER = "transferencias/"
+TRANSFERENCIAS_FOLDER = TRANSFERENCIAS_DIR
 
 def load_all_transferencias():
     """Carga y concatena todas las transferencias registradas (manuales y automáticas)."""
