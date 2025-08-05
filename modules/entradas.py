@@ -3,7 +3,8 @@ import pandas as pd
 import os
 from datetime import datetime
 from utils.excel_tools import to_excel_bytes
-from utils.path_utils import CATALOGO_DIR, ENTRADAS_DIR, latest_file
+from utils.path_utils import ENTRADAS_DIR
+from modules.catalogo import load_catalog
 
 ENTRADAS_FOLDER = ENTRADAS_DIR
 
@@ -46,10 +47,9 @@ def entradas_module():
     Todos los registros quedan almacenados en la carpeta `data/entradas/` para respaldo y auditoría.
     """)
 
-    cat_path = latest_file(CATALOGO_DIR, "catalogo")
-    cat = pd.read_excel(cat_path) if cat_path and os.path.exists(cat_path) else pd.DataFrame()
-    if cat.empty:
-        st.warning("El catálogo está vacío. Debes cargar productos primero en el catálogo.")
+    cat = load_catalog()
+    if cat.empty or "Item" not in cat.columns:
+        st.warning("El catálogo está vacío o falta la columna 'Item'.")
         return
         
     fecha = st.date_input("Fecha de entrada", value=datetime.today())

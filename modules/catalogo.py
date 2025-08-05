@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import os
+from glob import glob
 from utils.excel_tools import to_excel_bytes
 from utils.path_utils import CATALOGO_DIR, latest_file
 
@@ -18,6 +19,10 @@ EXPECTED_COLUMNS = [
 def load_catalog():
     """Carga y valida el catálogo de productos desde Excel."""
     path = latest_file(CATALOGO_DIR, "catalogo")
+    if not path:
+        # Fallback to any Excel file in the catalog directory
+        candidates = glob(os.path.join(CATALOGO_DIR, "*.xlsx"))
+        path = candidates[0] if candidates else None
     if path and os.path.exists(path):
         df = pd.read_excel(path)
         if "Item" not in df.columns and "Nombre" in df.columns:
