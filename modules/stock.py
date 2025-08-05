@@ -24,6 +24,7 @@ AUDITORIA_AP_FOLDER = AUDITORIA_AP_DIR
 AUDITORIA_CI_FOLDER = AUDITORIA_CI_DIR
 
 LOW_STOCK_THRESHOLD = 3  # botellas
+UBICACIONES = ["Almacén", "Barra", "Vinera"]
 
 
 def load_all_entradas():
@@ -89,6 +90,62 @@ def load_last_cierre():
     return df, True
 
 
+def calcular_stock_actual(cat=None, stock_inicial=None):
+    """Calcula el stock actual por producto y ubicación y retorna un DataFrame."""
+    if cat is None:
+        cat = load_catalog()
+    if stock_inicial is None:
+        stock_inicial, _ = load_last_cierre()
+
+    entradas = load_all_entradas()
+    transferencias = load_all_transferencias()
+    ventas = load_all_ventas()
+
+    cat_filtrado = cat[~cat["Item"].str.contains(r"(?i)c[oó]ctel(?:es)?|cocktail", na=False)]
+    items = cat_filtrado["Item"].unique()
+
+    stock = []
+    for item in items:
+        for ubic in UBICACIONES:
+            cantidad = 0.0
+            if not stock_inicial.empty:
+                match = stock_inicial[(stock_inicial["Item"] == item) & (stock_inicial["Ubicación"] == ubic)]
+                if not match.empty:
+                    cantidad = (
+                        match.iloc[0]["Cantidad"]
+                        if "Cantidad" in match.columns
+                        else match.iloc[0].get("Físico Cierre", 0)
+                    )
+            if not entradas.empty:
+                entradas_sum = entradas[(entradas["Item"] == item) & (entradas["Ubicación destino"] == ubic)]["Cantidad"].sum()
+                cantidad += entradas_sum
+            if not transferencias.empty:
+                transfer_in = transferencias[(transferencias["Item"] == item) & (transferencias["Hacia"] == ubic)]["Cantidad"].sum()
+                transfer_out = transferencias[(transferencias["Item"] == item) & (transferencias["Desde"] == ubic)]["Cantidad"].sum()
+                cantidad += transfer_in - transfer_out
+            if ubic in ["Barra", "Vinera"] and not ventas.empty:
+                consumo = ventas[(ventas["Item usado"] == item) & (ventas["Ubicación de salida"] == ubic)]["Cantidad teórica consumida"].sum()
+                cantidad -= consumo
+
+            stock_botellas = to_bottles(item, cantidad, cat)
+            subcat = (
+                cat_filtrado[cat_filtrado["Item"] == item]["Subcategoría"].iloc[0]
+                if not cat_filtrado[cat_filtrado["Item"] == item].empty
+                else None
+            )
+            stock.append({
+                "Producto": item,
+                "Subcategoría": subcat,
+                "Ubicación": ubic,
+                "Stock Botellas": round(stock_botellas, 2) if stock_botellas is not None else None,
+            })
+
+    df_stock = pd.DataFrame(stock)
+    df_stock = df_stock[df_stock["Stock Botellas"].notna()]
+    df_stock["Stock Botellas"] = df_stock["Stock Botellas"].round(2)
+    return df_stock
+
+
 def obtener_ultimo_movimiento():
     """Devuelve descripción del movimiento más reciente registrado."""
     movimientos = [
@@ -139,69 +196,8 @@ def stock_module():
         )
     ult_mov = obtener_ultimo_movimiento()
     st.caption(f"Último movimiento registrado: {ult_mov}")
-    entradas = load_all_entradas()
-    transferencias = load_all_transferencias()
-    ventas = load_all_ventas()
-
-    ubicaciones = ["Almacén", "Barra", "Vinera"]
-    # Excluir productos que sean cocteles/cocktails del stock
-    cat_filtrado = cat[~cat["Item"].str.contains(r"(?i)c[oó]ctel(?:es)?|cocktail", na=False)]
-    items = cat_filtrado["Item"].unique()
-
-    stock = []
-    for item in items:
-        for ubic in ubicaciones:
-            cantidad = 0.0
-            # Cierre confirmado
-            if not stock_inicial.empty:
-                match = stock_inicial[(stock_inicial["Item"] == item) & (stock_inicial["Ubicación"] == ubic)]
-                if not match.empty:
-                    cantidad = (
-                        match.iloc[0]["Cantidad"]
-                        if "Cantidad" in match.columns
-                        else match.iloc[0].get("Físico Cierre", 0)
-                    )
-            # Sumar entradas a esa ubicación
-            if not entradas.empty:
-                entradas_sum = entradas[(entradas["Item"] == item) & (entradas["Ubicación destino"] == ubic)][
-                    "Cantidad"
-                ].sum()
-                cantidad += entradas_sum
-            # Transferencias: sumar si es destino, restar si es origen
-            if not transferencias.empty:
-                transfer_in = transferencias[(transferencias["Item"] == item) & (transferencias["Hacia"] == ubic)][
-                    "Cantidad"
-                ].sum()
-                transfer_out = transferencias[(transferencias["Item"] == item) & (transferencias["Desde"] == ubic)][
-                    "Cantidad"
-                ].sum()
-                cantidad += transfer_in - transfer_out
-            # Ventas (consumo teórico): solo para Barra y Vinera
-            if ubic in ["Barra", "Vinera"] and not ventas.empty:
-                consumo = ventas[(ventas["Item usado"] == item) & (ventas["Ubicación de salida"] == ubic)][
-                    "Cantidad teórica consumida"
-                ].sum()
-                cantidad -= consumo
-
-            stock_botellas = to_bottles(item, cantidad, cat)
-            subcat = (
-                cat_filtrado[cat_filtrado["Item"] == item]["Subcategoría"].iloc[0]
-                if not cat_filtrado[cat_filtrado["Item"] == item].empty
-                else None
-            )
-            stock.append(
-                {
-                    "Producto": item,
-                    "Subcategoría": subcat,
-                    "Ubicación": ubic,
-                    "Stock Botellas": round(stock_botellas, 2)
-                    if stock_botellas is not None
-                    else None,
-                }
-            )
-
-    df_stock = pd.DataFrame(stock)
-    df_stock = df_stock[df_stock["Stock Botellas"].notna()]
+    df_stock = calcular_stock_actual(cat, stock_inicial)
+    ubicaciones = UBICACIONES
 
     # FILTRO POR UBICACIÓN
     ubicacion_sel = st.selectbox("Filtrar por ubicación", options=["TODAS"] + ubicaciones)
