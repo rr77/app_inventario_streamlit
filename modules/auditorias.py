@@ -1,7 +1,8 @@
 import streamlit as st
 import pandas as pd
 import os
-from datetime import datetime
+import shutil
+from datetime import datetime, timedelta
 from utils.pdf_report import generar_pdf_cierre, generar_pdf_apertura  # deja tu stub
 from utils.excel_tools import to_excel_bytes
 from utils.unit_conversion import to_ml
@@ -93,13 +94,15 @@ def auditoria_apertura():
         df["Requisicion"] = df.apply(lambda r: to_ml(r["Item"], r["Requisicion"], cat), axis=1)
 
         registrar_requisiciones(df, fecha.strftime("%Y-%m-%d"))
-        archivos = [f for f in os.listdir(CIERRES_CONFIRMADOS_FOLDER) if f.endswith('.xlsx')]
-        if archivos:
-            ult_cierre = os.path.join(CIERRES_CONFIRMADOS_FOLDER, sorted(archivos, reverse=True)[0])
-            prev = pd.read_excel(ult_cierre)
+        fecha_prev = fecha - timedelta(days=1)
+        cierre_prev_path = os.path.join(
+            CIERRES_CONFIRMADOS_FOLDER,
+            f"auditoria_cierre_{fecha_prev.strftime('%Y-%m-%d')}.xlsx",
+        )
+        if os.path.exists(cierre_prev_path):
+            prev = pd.read_excel(cierre_prev_path)
         else:
             prev = pd.DataFrame(columns=["Item", "Ubicación", "Físico Cierre"])
-        if prev.empty:
             st.warning("No se encontró auditoría de cierre del día anterior.")
         result = []
         for idx, row in df.iterrows():
@@ -262,6 +265,8 @@ def auditoria_cierre():
             pdf_bytes = generar_pdf_cierre(
                 df_res, os.path.join(REPORTES_PDF_FOLDER, pdfout)
             )
+            os.makedirs(CIERRES_CONFIRMADOS_FOLDER, exist_ok=True)
+            shutil.copy(out_path, os.path.join(CIERRES_CONFIRMADOS_FOLDER, outfile))
         except Exception as e:
             st.error(f"Error guardando auditoría: {e}")
             return
