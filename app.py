@@ -7,7 +7,6 @@ from modules.transferencias import transferencias_module
 from modules.ventas import ventas_module
 from modules.auditorias import auditoria_apertura, auditoria_cierre
 from modules.historial import historial_module
-from modules.plantillas import plantilla_module
 from modules.reportes import reportes_module
 
 st.set_page_config(page_title="Gestión Inventario Licores", layout="wide")
@@ -24,8 +23,7 @@ opciones = [
     "Auditoría de Apertura",
     "Auditoría de Cierre",
     "Historial",
-    "Reportes",
-    "Descargar Plantilla de Conteo"
+    "Reportes"
 ]
 eleccion = st.sidebar.radio("Seleccione módulo:", opciones)
 
@@ -50,5 +48,3 @@ elif eleccion == "Historial":
     historial_module()
 elif eleccion == "Reportes":
     reportes_module()
-elif eleccion == "Descargar Plantilla de Conteo":
-    plantilla_module()
