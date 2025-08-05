@@ -16,6 +16,9 @@ TRANSFERENCIAS_FOLDER = TRANSFERENCIAS_DIR
 VENTAS_PROCESADAS_FOLDER = VENTAS_PROCESADAS_DIR
 CIERRES_CONFIRMADOS_FOLDER = CIERRES_CONFIRMADOS_DIR
 
+LOW_STOCK_THRESHOLD = 3  # botellas
+
+
 def load_all_entradas():
     archivos = [f for f in os.listdir(ENTRADAS_FOLDER) if f.endswith('.xlsx')]
     dfs = []
@@ -23,12 +26,13 @@ def load_all_entradas():
         try:
             df = pd.read_excel(os.path.join(ENTRADAS_FOLDER, f))
             dfs.append(df)
-        except:
+        except:  # noqa: E722
             pass
     if dfs:
         return pd.concat(dfs, ignore_index=True)
     else:
         return pd.DataFrame(columns=["Fecha", "Item", "Subcategoría", "Ubicación destino", "Cantidad"])
+
 
 def load_all_transferencias():
     archivos = [f for f in os.listdir(TRANSFERENCIAS_FOLDER) if f.endswith('.xlsx')]
@@ -37,12 +41,13 @@ def load_all_transferencias():
         try:
             df = pd.read_excel(os.path.join(TRANSFERENCIAS_FOLDER, f))
             dfs.append(df)
-        except:
+        except:  # noqa: E722
             pass
     if dfs:
         return pd.concat(dfs, ignore_index=True)
     else:
         return pd.DataFrame(columns=["Fecha", "Item", "Desde", "Hacia", "Cantidad"])
+
 
 def load_all_ventas():
     archivos = [f for f in os.listdir(VENTAS_PROCESADAS_FOLDER) if f.endswith('.xlsx')]
@@ -51,12 +56,22 @@ def load_all_ventas():
         try:
             df = pd.read_excel(os.path.join(VENTAS_PROCESADAS_FOLDER, f))
             dfs.append(df)
-        except:
+        except:  # noqa: E722
             pass
     if dfs:
         return pd.concat(dfs, ignore_index=True)
     else:
-        return pd.DataFrame(columns=["Fecha", "Producto vendido", "Item usado", "Subcategoría", "Cantidad teórica consumida", "Ubicación de salida"])
+        return pd.DataFrame(
+            columns=[
+                "Fecha",
+                "Producto vendido",
+                "Item usado",
+                "Subcategoría",
+                "Cantidad teórica consumida",
+                "Ubicación de salida",
+            ]
+        )
+
 
 def load_last_cierre():
     archivos = [f for f in os.listdir(CIERRES_CONFIRMADOS_FOLDER) if f.endswith('.xlsx')]
@@ -66,12 +81,15 @@ def load_last_cierre():
     df = pd.read_excel(os.path.join(CIERRES_CONFIRMADOS_FOLDER, archivos_sorted[0]))
     return df
 
+
 def stock_module():
     st.title("Stock Actual por Ubicación")
-    st.info("""
+    st.info(
+        """
     Visualiza el stock actual considerando todos los movimientos registrados a la fecha.
     El cálculo parte del último cierre confirmado.
-    """)
+    """
+    )
 
     cat = load_catalog()
     if cat.empty or "Item" not in cat.columns:
@@ -95,46 +113,98 @@ def stock_module():
             if not stock_inicial.empty:
                 match = stock_inicial[(stock_inicial["Item"] == item) & (stock_inicial["Ubicación"] == ubic)]
                 if not match.empty:
-                    cantidad = match.iloc[0]["Cantidad"] if "Cantidad" in match.columns else match.iloc[0].get("Físico Cierre", 0)
+                    cantidad = (
+                        match.iloc[0]["Cantidad"]
+                        if "Cantidad" in match.columns
+                        else match.iloc[0].get("Físico Cierre", 0)
+                    )
             # Sumar entradas a esa ubicación
             if not entradas.empty:
-                entradas_sum = entradas[(entradas["Item"] == item) & (entradas["Ubicación destino"] == ubic)]["Cantidad"].sum()
+                entradas_sum = entradas[(entradas["Item"] == item) & (entradas["Ubicación destino"] == ubic)][
+                    "Cantidad"
+                ].sum()
                 cantidad += entradas_sum
             # Transferencias: sumar si es destino, restar si es origen
             if not transferencias.empty:
-                transfer_in = transferencias[(transferencias["Item"] == item) & (transferencias["Hacia"] == ubic)]["Cantidad"].sum()
-                transfer_out = transferencias[(transferencias["Item"] == item) & (transferencias["Desde"] == ubic)]["Cantidad"].sum()
+                transfer_in = transferencias[(transferencias["Item"] == item) & (transferencias["Hacia"] == ubic)][
+                    "Cantidad"
+                ].sum()
+                transfer_out = transferencias[(transferencias["Item"] == item) & (transferencias["Desde"] == ubic)][
+                    "Cantidad"
+                ].sum()
                 cantidad += transfer_in - transfer_out
             # Ventas (consumo teórico): solo para Barra y Vinera
             if ubic in ["Barra", "Vinera"] and not ventas.empty:
-                consumo = ventas[(ventas["Item usado"] == item) & (ventas["Ubicación de salida"] == ubic)]["Cantidad teórica consumida"].sum()
+                consumo = ventas[(ventas["Item usado"] == item) & (ventas["Ubicación de salida"] == ubic)][
+                    "Cantidad teórica consumida"
+                ].sum()
                 cantidad -= consumo
 
             stock_botellas = to_bottles(item, cantidad, cat)
-            stock.append({
-                "Item": item,
-                "Ubicación": ubic,
-                "Stock teórico (unidad base)": cantidad,
-                "Stock equivalente (botellas)": round(stock_botellas, 2) if stock_botellas is not None else None,
-            })
+            subcat = (
+                cat_filtrado[cat_filtrado["Item"] == item]["Subcategoría"].iloc[0]
+                if not cat_filtrado[cat_filtrado["Item"] == item].empty
+                else None
+            )
+            stock.append(
+                {
+                    "Producto": item,
+                    "Subcategoría": subcat,
+                    "Ubicación": ubic,
+                    "Stock Botellas": round(stock_botellas, 2)
+                    if stock_botellas is not None
+                    else None,
+                }
+            )
 
     df_stock = pd.DataFrame(stock)
-    # eliminar filas sin stock para evitar mostrar ubicaciones innecesarias
-    df_stock = df_stock[df_stock["Stock teórico (unidad base)"] != 0]
+    df_stock = df_stock[df_stock["Stock Botellas"].notna()]
 
     # FILTRO POR UBICACIÓN
     ubicacion_sel = st.selectbox("Filtrar por ubicación", options=["TODAS"] + ubicaciones)
     if ubicacion_sel != "TODAS":
         df_stock = df_stock[df_stock["Ubicación"] == ubicacion_sel]
 
-    df_display = df_stock.copy()
-    df_display["Stock equivalente (botellas)"] = df_display["Stock equivalente (botellas)"].apply(lambda x: "" if pd.isna(x) else x)
+    # BÚSQUEDA POR NOMBRE DE PRODUCTO
+    search_term = st.text_input("Buscar producto")
+    if search_term:
+        df_stock = df_stock[
+            df_stock["Producto"].str.contains(search_term, case=False, na=False)
+        ]
 
-    st.dataframe(df_display, use_container_width=True)
+    # ESTADO SEGÚN STOCK
+    def evaluar_estado(cant):
+        if pd.isna(cant):
+            return ""
+        if cant < 0:
+            return "⚠️ Negativo"
+        if cant == 0:
+            return "🔴 Agotado"
+        if cant <= LOW_STOCK_THRESHOLD:
+            return "🟡 Bajo stock"
+        return "✅ OK"
+
+    df_stock["Estado"] = df_stock["Stock Botellas"].apply(evaluar_estado)
+
+    # ORDEN ASCENDENTE POR DEFECTO
+    df_stock = df_stock.sort_values(by="Stock Botellas", ascending=True)
+
+    # Estilos visuales para resaltar situaciones críticas
+    def color_estado(row):
+        estado = row["Estado"]
+        if "Negativo" in estado:
+            return ["background-color: #ffbdbd"] * len(row)
+        if "Agotado" in estado:
+            return ["background-color: #ffc9c9"] * len(row)
+        if "Bajo" in estado:
+            return ["background-color: #fff5ba"] * len(row)
+        return [""] * len(row)
+
+    st.dataframe(df_stock.style.apply(color_estado, axis=1), use_container_width=True)
 
     st.download_button(
         label="Descargar Stock Actual (Excel)",
         data=to_excel_bytes(df_stock),
         file_name="stock_actual.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
