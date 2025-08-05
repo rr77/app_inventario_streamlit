@@ -102,7 +102,7 @@ def auditoria_apertura():
         if os.path.exists(cierre_prev_path):
             prev = pd.read_excel(cierre_prev_path)
         else:
-            prev = pd.DataFrame(columns=["Item", "Ubicación", "Físico Cierre"])
+            prev = pd.DataFrame(columns=["Item", "Ubicación", "Teorico", "Diferencia"])
             st.warning("No se encontró auditoría de cierre del día anterior.")
         result = []
         for idx, row in df.iterrows():
@@ -110,7 +110,11 @@ def auditoria_apertura():
                 (prev["Item"] == row["Item"]) &
                 (prev["Ubicación"] == row["Ubicación"])
             ]
-            cierre_anterior = float(cierre_prev.iloc[0]["Físico Cierre"]) if not cierre_prev.empty else 0
+            cierre_anterior = (
+                float(cierre_prev.iloc[0]["Teorico"] + cierre_prev.iloc[0]["Diferencia"])
+                if not cierre_prev.empty
+                else 0
+            )
             diferencia = float(row["Conteo Apertura"]) - cierre_anterior
             result.append({
                 "Item": row["Item"],

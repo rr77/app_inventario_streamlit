@@ -114,7 +114,7 @@ def calcular_stock_actual(cat=None, stock_inicial=None):
                     cantidad = (
                         match.iloc[0]["Cantidad"]
                         if "Cantidad" in match.columns
-                        else match.iloc[0].get("Físico Cierre", 0)
+                        else match.iloc[0].get("Teorico", 0) + match.iloc[0].get("Diferencia", 0)
                     )
             if not entradas.empty:
                 entradas_sum = entradas[(entradas["Item"] == item) & (entradas["Ubicación destino"] == ubic)]["Cantidad"].sum()
