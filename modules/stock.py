@@ -136,6 +136,9 @@ def stock_module():
     """
     )
 
+    # Asegurar carpeta de reportes
+    os.makedirs(REPORTES_PDF_FOLDER, exist_ok=True)
+
     cat = load_catalog()
     if cat.empty or "Item" not in cat.columns:
         st.warning("No se encontró el catálogo o falta la columna 'Item'.")
