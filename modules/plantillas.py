@@ -3,19 +3,20 @@ import pandas as pd
 import os
 from datetime import datetime
 from utils.excel_tools import to_excel_bytes  # <-- AGREGA ESTA LÍNEA
+from utils.path_utils import CATALOGO_DIR, PLANTILLAS_DIR, latest_file
 
-CATALOGO_PATH = "catalogo/catalogo.xlsx"
-PLANTILLAS_FOLDER = "plantillas/"
+PLANTILLAS_FOLDER = PLANTILLAS_DIR
 
 def generar_plantilla_catalogo():
     """
     Genera DataFrame plantilla usando el catálogo vigente,
     una fila por item-ubicación.
     """
-    if not os.path.exists(CATALOGO_PATH):
+    cat_path = latest_file(CATALOGO_DIR, "catalogo")
+    if not cat_path or not os.path.exists(cat_path):
         st.error("¡No se encontró el archivo de catálogo!")
         return pd.DataFrame()
-    cat = pd.read_excel(CATALOGO_PATH)
+    cat = pd.read_excel(cat_path)
     ubicaciones = ["Almacén", "Barra", "Vinera"]
     filas = []
     for idx, row in cat.iterrows():

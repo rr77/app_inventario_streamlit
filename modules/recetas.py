@@ -2,17 +2,18 @@ import streamlit as st
 import pandas as pd
 import os
 from utils.excel_tools import to_excel_bytes_multiple_sheets
-
-RECETAS_PATH = "recetas/recetas.xlsx"
+from utils.path_utils import RECETAS_DIR, latest_file
 
 def load_recetas():
     """
-    Carga las hojas de Recetas y Reglas Estándar desde recetas/recetas.xlsx.
-    Si no existen, devuelve DataFrames vacíos con las columnas correctas.
+    Carga las hojas de Recetas y Reglas Estándar desde el archivo más reciente
+    ubicado en `data/recetas/`. Si no existen, devuelve DataFrames vacíos con
+    las columnas correctas.
     """
-    if os.path.exists(RECETAS_PATH):
+    path = latest_file(RECETAS_DIR, "recetas")
+    if path and os.path.exists(path):
         try:
-            xls = pd.ExcelFile(RECETAS_PATH)
+            xls = pd.ExcelFile(path)
             # Espera dos hojas exactas: 'Recetas' y 'ReglasEst'
             df_recetas = pd.read_excel(xls, "Recetas")
             df_reglas = pd.read_excel(xls, "ReglasEst")
@@ -29,9 +30,9 @@ def recetas_module():
     st.title("Recetas (Consumo Teórico)")
 
     st.info("""
-    Este módulo muestra las recetas de productos y las reglas estándar de consumo.  
-    - La edición/mantenimiento SOLO se realiza en `recetas/recetas.xlsx` (dos hojas: Recetas y ReglasEst).
-    - Las recetas determinan el consumo teórico de inventario a partir de las ventas.  
+    Este módulo muestra las recetas de productos y las reglas estándar de consumo.
+    - La edición/mantenimiento SOLO se realiza en el archivo más reciente dentro de `data/recetas/` (dos hojas: Recetas y ReglasEst).
+    - Las recetas determinan el consumo teórico de inventario a partir de las ventas.
     """)
 
     df_recetas, df_reglas = load_recetas()

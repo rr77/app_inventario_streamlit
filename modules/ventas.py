@@ -3,20 +3,28 @@ import pandas as pd
 import os
 from datetime import datetime
 from utils.excel_tools import to_excel_bytes  # Agrega esta línea
+from utils.path_utils import (
+    CATALOGO_DIR,
+    RECETAS_DIR,
+    VENTAS_PROCESADAS_DIR,
+    latest_file,
+)
 
-CATALOGO_PATH = "catalogo/catalogo.xlsx"
-RECETAS_PATH = "recetas/recetas.xlsx"
-VENTAS_PROCESADAS_FOLDER = "ventas_procesadas/"
+VENTAS_PROCESADAS_FOLDER = VENTAS_PROCESADAS_DIR
 
 VINERA_SUBCATEGORIAS = set([
     "Blancos", "Tintos", "Espumantes", "Rosados", "Spirits & Wine"
 ])
 
 def load_catalogo():
-    return pd.read_excel(CATALOGO_PATH)
+    path = latest_file(CATALOGO_DIR, "catalogo")
+    return pd.read_excel(path) if path and os.path.exists(path) else pd.DataFrame()
 
 def load_recetas():
-    xls = pd.ExcelFile(RECETAS_PATH)
+    path = latest_file(RECETAS_DIR, "recetas")
+    if not path or not os.path.exists(path):
+        return pd.DataFrame(), pd.DataFrame()
+    xls = pd.ExcelFile(path)
     recetas = pd.read_excel(xls, "Recetas")
     reglas = pd.read_excel(xls, "ReglasEst")
     return recetas, reglas
@@ -95,7 +103,7 @@ def ventas_module():
     st.title("Procesador de Ventas (Consumo Teórico)")
     st.info(
         """Sube el Excel del POS (ventas del día).
-        El sistema calculará el consumo teórico de inventario usando las recetas y registrará todo en `/ventas_procesadas/`.
+        El sistema calculará el consumo teórico de inventario usando las recetas y registrará todo en `data/ventas_procesadas/`.
         El archivo POS puede tener cualquier cabecera: mapea automáticamente las columnas relevantes.
 
         **Regla de ubicación de salida:**

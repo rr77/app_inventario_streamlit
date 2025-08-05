@@ -2,12 +2,19 @@ import streamlit as st
 import pandas as pd
 import os
 from utils.excel_tools import to_excel_bytes
+from utils.path_utils import (
+    CATALOGO_DIR,
+    ENTRADAS_DIR,
+    TRANSFERENCIAS_DIR,
+    VENTAS_PROCESADAS_DIR,
+    CIERRES_CONFIRMADOS_DIR,
+    latest_file,
+)
 
-CATALOGO_PATH = "catalogo/catalogo.xlsx"
-ENTRADAS_FOLDER = "entradas/"
-TRANSFERENCIAS_FOLDER = "transferencias/"
-VENTAS_PROCESADAS_FOLDER = "ventas_procesadas/"
-CIERRES_CONFIRMADOS_FOLDER = "cierres_confirmados/"
+ENTRADAS_FOLDER = ENTRADAS_DIR
+TRANSFERENCIAS_FOLDER = TRANSFERENCIAS_DIR
+VENTAS_PROCESADAS_FOLDER = VENTAS_PROCESADAS_DIR
+CIERRES_CONFIRMADOS_FOLDER = CIERRES_CONFIRMADOS_DIR
 
 def load_all_entradas():
     archivos = [f for f in os.listdir(ENTRADAS_FOLDER) if f.endswith('.xlsx')]
@@ -66,7 +73,11 @@ def stock_module():
     El cálculo parte del último cierre confirmado.
     """)
 
-    cat = pd.read_excel(CATALOGO_PATH)
+    cat_path = latest_file(CATALOGO_DIR, "catalogo")
+    if not cat_path or not os.path.exists(cat_path):
+        st.warning("No se encontró el catálogo.")
+        return
+    cat = pd.read_excel(cat_path)
     stock_inicial = load_last_cierre()
     entradas = load_all_entradas()
     transferencias = load_all_transferencias()
