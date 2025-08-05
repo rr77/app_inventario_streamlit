@@ -20,7 +20,11 @@ def save_entrada(df, fecha):
         df_new = pd.concat([df_old, df], ignore_index=True)
     else:
         df_new = df
-    df_new.to_excel(path, index=False)
+    try:
+        with pd.ExcelWriter(path, engine="xlsxwriter") as writer:
+            df_new.to_excel(writer, index=False)
+    except Exception as e:
+        st.error(f"Error guardando entradas: {e}")
 
 def show_latest_entradas():
     """Muestra las últimas 5 entradas cargadas (de los archivos más recientes)."""
