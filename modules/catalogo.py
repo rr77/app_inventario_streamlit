@@ -4,14 +4,43 @@ import os
 from utils.excel_tools import to_excel_bytes
 from utils.path_utils import CATALOGO_DIR, latest_file
 
+
+EXPECTED_COLUMNS = [
+    "Nombre",
+    "Subcategoría",
+    "Tipo_venta",
+    "Unidad",
+    "Volumen_ml_por_unidad",
+    "Dosis_ml",
+]
+
+
 def load_catalog():
-    """Carga el catálogo de productos desde Excel."""
+    """Carga y valida el catálogo de productos desde Excel."""
     path = latest_file(CATALOGO_DIR, "catalogo")
     if path and os.path.exists(path):
         df = pd.read_excel(path)
     else:
         # Si el catálogo no existe, retorna DataFrame vacío con columnas esperadas
-        df = pd.DataFrame(columns=["Item", "Subcategoría", "Tipo de unidad", "Cantidad por unidad"])
+        df = pd.DataFrame(columns=EXPECTED_COLUMNS)
+
+    missing = [c for c in EXPECTED_COLUMNS if c not in df.columns]
+    if missing:
+        st.error(f"Catálogo incompleto. Faltan columnas: {', '.join(missing)}")
+        df = df.reindex(columns=EXPECTED_COLUMNS)
+
+    # Validaciones específicas por tipo de venta
+    if not df.empty:
+        bot_missing = df[(df["Tipo_venta"] == "BOT") & df["Volumen_ml_por_unidad"].isna()]
+        trg_missing = df[(df["Tipo_venta"] == "TRG") & df["Dosis_ml"].isna()]
+        if not bot_missing.empty:
+            st.warning(
+                "Hay productos de tipo BOT sin 'Volumen_ml_por_unidad'. Verifica el catálogo."
+            )
+        if not trg_missing.empty:
+            st.warning(
+                "Hay productos de tipo TRG sin 'Dosis_ml'. Verifica el catálogo."
+            )
     return df
 
 def catalogo_module():
@@ -39,8 +68,10 @@ def catalogo_module():
 
     st.info(
         "**Formato requerido:**\n"
-        "- Item (nombre único)\n"
-        "- Subcategoría (ej. Vodka, Ron, Whisky...)\n"
-        "- Tipo de unidad (ml / unidad)\n"
-        "- Cantidad por unidad (normalmente 750ml, 1l, 24 unidades, etc.)"
+        "- Nombre\n"
+        "- Subcategoría\n"
+        "- Tipo_venta (BOT, TRG, CTL)\n"
+        "- Unidad (ml, botella, etc.)\n"
+        "- Volumen_ml_por_unidad (si Tipo_venta = BOT)\n"
+        "- Dosis_ml (si Tipo_venta = TRG)"
     )
