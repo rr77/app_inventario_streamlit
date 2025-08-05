@@ -76,10 +76,10 @@ def load_all_ventas():
 def load_last_cierre():
     archivos = [f for f in os.listdir(CIERRES_CONFIRMADOS_FOLDER) if f.endswith('.xlsx')]
     if not archivos:
-        return pd.DataFrame(columns=["Item", "Ubicación", "Cantidad"])
+        return pd.DataFrame(columns=["Item", "Ubicación", "Cantidad"]), False
     archivos_sorted = sorted(archivos, reverse=True)
     df = pd.read_excel(os.path.join(CIERRES_CONFIRMADOS_FOLDER, archivos_sorted[0]))
-    return df
+    return df, True
 
 
 def stock_module():
@@ -95,7 +95,11 @@ def stock_module():
     if cat.empty or "Item" not in cat.columns:
         st.warning("No se encontró el catálogo o falta la columna 'Item'.")
         return
-    stock_inicial = load_last_cierre()
+    stock_inicial, cierre_encontrado = load_last_cierre()
+    if not cierre_encontrado:
+        st.warning(
+            "No se encontró un cierre confirmado. El stock se calcula desde cero."
+        )
     entradas = load_all_entradas()
     transferencias = load_all_transferencias()
     ventas = load_all_ventas()
