@@ -8,6 +8,9 @@ from utils.path_utils import (
     TRANSFERENCIAS_DIR,
     VENTAS_PROCESADAS_DIR,
     CIERRES_CONFIRMADOS_DIR,
+    AUDITORIA_AP_DIR,
+    AUDITORIA_CI_DIR,
+    latest_file,
 )
 from modules.catalogo import load_catalog
 
@@ -15,6 +18,8 @@ ENTRADAS_FOLDER = ENTRADAS_DIR
 TRANSFERENCIAS_FOLDER = TRANSFERENCIAS_DIR
 VENTAS_PROCESADAS_FOLDER = VENTAS_PROCESADAS_DIR
 CIERRES_CONFIRMADOS_FOLDER = CIERRES_CONFIRMADOS_DIR
+AUDITORIA_AP_FOLDER = AUDITORIA_AP_DIR
+AUDITORIA_CI_FOLDER = AUDITORIA_CI_DIR
 
 LOW_STOCK_THRESHOLD = 3  # botellas
 
@@ -82,6 +87,36 @@ def load_last_cierre():
     return df, True
 
 
+def obtener_ultimo_movimiento():
+    """Devuelve descripción del movimiento más reciente registrado."""
+    movimientos = [
+        (ENTRADAS_FOLDER, "Entrada", "entradas"),
+        (TRANSFERENCIAS_FOLDER, "Transferencia", "transferencias"),
+        (VENTAS_PROCESADAS_FOLDER, "Salida", "ventas_procesadas"),
+        (AUDITORIA_AP_FOLDER, "Auditoría de apertura", "auditoria_apertura"),
+        (AUDITORIA_CI_FOLDER, "Auditoría de cierre", "auditoria_cierre"),
+    ]
+    ultimo = None
+    tipo = ""
+    pref_ultimo = ""
+    for folder, etiqueta, pref in movimientos:
+        archivo = latest_file(folder, pref)
+        if archivo:
+            mtime = os.path.getmtime(archivo)
+            if not ultimo or mtime > ultimo[0]:
+                ultimo = (mtime, archivo)
+                tipo = etiqueta
+                pref_ultimo = pref
+    if ultimo:
+        fecha = (
+            os.path.basename(ultimo[1])
+            .replace(f"{pref_ultimo}_", "")
+            .replace(".xlsx", "")
+        )
+        return f"{tipo} ({fecha})"
+    return "Sin movimientos registrados"
+
+
 def stock_module():
     st.title("Stock Actual por Ubicación")
     st.info(
@@ -100,6 +135,8 @@ def stock_module():
         st.warning(
             "No se encontró un cierre confirmado. El stock se calcula desde cero."
         )
+    ult_mov = obtener_ultimo_movimiento()
+    st.caption(f"Último movimiento registrado: {ult_mov}")
     entradas = load_all_entradas()
     transferencias = load_all_transferencias()
     ventas = load_all_ventas()
