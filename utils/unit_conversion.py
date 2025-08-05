@@ -12,6 +12,11 @@ def to_ml(item: str, cantidad: float, catalogo: pd.DataFrame) -> float:
     """
     if catalogo is None or catalogo.empty:
         return cantidad
+    # Normaliza encabezados para evitar errores por espacios o mayúsculas/minúsculas
+    catalogo = catalogo.copy()
+    catalogo.columns = catalogo.columns.str.strip()
+    if "Item" not in catalogo.columns:
+        return cantidad
     row = catalogo[catalogo["Item"] == item]
     if row.empty:
         return cantidad
@@ -36,6 +41,10 @@ def to_bottles(item: str, cantidad_ml: float, catalogo: pd.DataFrame):
     es posible realizar la conversión, se retorna ``None``.
     """
     if catalogo is None or catalogo.empty:
+        return None
+    catalogo = catalogo.copy()
+    catalogo.columns = catalogo.columns.str.strip()
+    if "Item" not in catalogo.columns:
         return None
     row = catalogo[catalogo["Item"] == item]
     if row.empty:
