@@ -3,9 +3,7 @@ import pandas as pd
 import os
 from datetime import datetime
 from utils.excel_tools import to_excel_bytes  # <-- AGREGA ESTA LÍNEA
-
-CATALOGO_PATH = "catalogo/catalogo.xlsx"
-PLANTILLAS_FOLDER = "plantillas/"
+from utils.paths import CATALOGO_PATH, PLANTILLAS_FOLDER
 
 def generar_plantilla_catalogo():
     """

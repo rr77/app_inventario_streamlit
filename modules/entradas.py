@@ -3,9 +3,7 @@ import pandas as pd
 import os
 from datetime import datetime
 from utils.excel_tools import to_excel_bytes
-
-CATALOGO_PATH = "catalogo/catalogo.xlsx"
-ENTRADAS_FOLDER = "entradas/"
+from utils.paths import CATALOGO_PATH, ENTRADAS_FOLDER
 
 def save_entrada(df, fecha):
     """

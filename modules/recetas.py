@@ -2,8 +2,7 @@ import streamlit as st
 import pandas as pd
 import os
 from utils.excel_tools import to_excel_bytes_multiple_sheets
-
-RECETAS_PATH = "recetas/recetas.xlsx"
+from utils.paths import RECETAS_PATH
 
 def load_recetas():
     """

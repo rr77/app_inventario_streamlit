@@ -4,15 +4,16 @@ import os
 from datetime import datetime
 from utils.pdf_report import generar_pdf_cierre, generar_pdf_apertura  # deja tu stub
 from utils.excel_tools import to_excel_bytes  # <<< AGREGA ESTA LINEA
-
-CATALOGO_PATH = "catalogo/catalogo.xlsx"
-ENTRADAS_FOLDER = "entradas/"
-TRANSFERENCIAS_FOLDER = "transferencias/"
-VENTAS_PROCESADAS_FOLDER = "ventas_procesadas/"
-CIERRES_CONFIRMADOS_FOLDER = "cierres_confirmados/"
-AUDITORIA_AP_FOLDER = "auditorias/apertura/"
-AUDITORIA_CI_FOLDER = "auditorias/cierre/"
-REPORTES_PDF_FOLDER = "reportes_pdf/"
+from utils.paths import (
+    CATALOGO_PATH,
+    ENTRADAS_FOLDER,
+    TRANSFERENCIAS_FOLDER,
+    VENTAS_PROCESADAS_FOLDER,
+    CIERRES_CONFIRMADOS_FOLDER,
+    AUDITORIA_AP_FOLDER,
+    AUDITORIA_CI_FOLDER,
+    REPORTES_PDF_FOLDER,
+)
 
 def registrar_requisiciones(df_audit, fecha):
     df_requis = df_audit[(df_audit["Requisicion"] > 0)]

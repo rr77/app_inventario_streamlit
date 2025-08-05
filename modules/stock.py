@@ -2,12 +2,13 @@ import streamlit as st
 import pandas as pd
 import os
 from utils.excel_tools import to_excel_bytes
-
-CATALOGO_PATH = "catalogo/catalogo.xlsx"
-ENTRADAS_FOLDER = "entradas/"
-TRANSFERENCIAS_FOLDER = "transferencias/"
-VENTAS_PROCESADAS_FOLDER = "ventas_procesadas/"
-CIERRES_CONFIRMADOS_FOLDER = "cierres_confirmados/"
+from utils.paths import (
+    CATALOGO_PATH,
+    ENTRADAS_FOLDER,
+    TRANSFERENCIAS_FOLDER,
+    VENTAS_PROCESADAS_FOLDER,
+    CIERRES_CONFIRMADOS_FOLDER,
+)
 
 def load_all_entradas():
     archivos = [f for f in os.listdir(ENTRADAS_FOLDER) if f.endswith('.xlsx')]

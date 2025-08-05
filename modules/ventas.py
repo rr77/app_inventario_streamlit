@@ -3,10 +3,7 @@ import pandas as pd
 import os
 from datetime import datetime
 from utils.excel_tools import to_excel_bytes  # Agrega esta línea
-
-CATALOGO_PATH = "catalogo/catalogo.xlsx"
-RECETAS_PATH = "recetas/recetas.xlsx"
-VENTAS_PROCESADAS_FOLDER = "ventas_procesadas/"
+from utils.paths import CATALOGO_PATH, RECETAS_PATH, VENTAS_PROCESADAS_FOLDER
 
 VINERA_SUBCATEGORIAS = set([
     "Blancos", "Tintos", "Espumantes", "Rosados", "Spirits & Wine"

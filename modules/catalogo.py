@@ -2,9 +2,7 @@ import streamlit as st
 import pandas as pd
 import os
 from utils.excel_tools import to_excel_bytes
-
-
-CATALOGO_PATH = "catalogo/catalogo.xlsx"
+from utils.paths import CATALOGO_PATH
 
 def load_catalog():
     """Carga el catálogo de productos desde Excel."""

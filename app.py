@@ -1,4 +1,8 @@
 import streamlit as st
+from utils.paths import ensure_dirs
+
+ensure_dirs()
+
 from modules.catalogo import catalogo_module
 from modules.recetas import recetas_module
 from modules.stock import stock_module

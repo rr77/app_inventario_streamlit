@@ -3,14 +3,22 @@ import pandas as pd
 import os
 from glob import glob
 from utils.excel_tools import to_excel_bytes  # <-- AGREGA ESTA LÍNEA
+from utils.paths import (
+    ENTRADAS_FOLDER,
+    TRANSFERENCIAS_FOLDER,
+    VENTAS_PROCESADAS_FOLDER,
+    AUDITORIA_AP_FOLDER,
+    AUDITORIA_CI_FOLDER,
+    CIERRES_CONFIRMADOS_FOLDER,
+)
 
 CARPETAS = {
-    "Entradas": "entradas/",
-    "Transferencias": "transferencias/",
-    "Ventas procesadas": "ventas_procesadas/",
-    "Auditoría apertura": "auditorias/apertura/",
-    "Auditoría cierre": "auditorias/cierre/",
-    "Cierres confirmados": "cierres_confirmados/"
+    "Entradas": ENTRADAS_FOLDER,
+    "Transferencias": TRANSFERENCIAS_FOLDER,
+    "Ventas procesadas": VENTAS_PROCESADAS_FOLDER,
+    "Auditoría apertura": AUDITORIA_AP_FOLDER,
+    "Auditoría cierre": AUDITORIA_CI_FOLDER,
+    "Cierres confirmados": CIERRES_CONFIRMADOS_FOLDER,
 }
 
 def cargar_historial(tipo, path):
