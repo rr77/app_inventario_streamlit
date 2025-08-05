@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import os
 from utils.excel_tools import to_excel_bytes
+from utils.unit_conversion import to_bottles
 from utils.path_utils import (
     CATALOGO_DIR,
     ENTRADAS_DIR,
@@ -94,7 +95,7 @@ def stock_module():
             if not stock_inicial.empty:
                 match = stock_inicial[(stock_inicial["Item"] == item) & (stock_inicial["Ubicación"] == ubic)]
                 if not match.empty:
-                    cantidad = match.iloc[0]["Cantidad"] if "Cantidad" in match.columns else match.iloc[0].get("Físico Cierre",0)
+                    cantidad = match.iloc[0]["Cantidad"] if "Cantidad" in match.columns else match.iloc[0].get("Físico Cierre", 0)
             # Sumar entradas a esa ubicación
             if not entradas.empty:
                 entradas_sum = entradas[(entradas["Item"] == item) & (entradas["Ubicación destino"] == ubic)]["Cantidad"].sum()
@@ -108,7 +109,14 @@ def stock_module():
             if ubic in ["Barra", "Vinera"] and not ventas.empty:
                 consumo = ventas[(ventas["Item usado"] == item) & (ventas["Ubicación de salida"] == ubic)]["Cantidad teórica consumida"].sum()
                 cantidad -= consumo
-            stock.append({"Item": item, "Ubicación": ubic, "Stock Actual": cantidad})
+
+            stock_botellas = to_bottles(item, cantidad, cat)
+            stock.append({
+                "Item": item,
+                "Ubicación": ubic,
+                "Stock Actual": cantidad,
+                "Stock Botellas": round(stock_botellas, 2) if stock_botellas is not None else None,
+            })
 
     df_stock = pd.DataFrame(stock)
 

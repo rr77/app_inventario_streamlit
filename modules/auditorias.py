@@ -3,8 +3,10 @@ import pandas as pd
 import os
 from datetime import datetime
 from utils.pdf_report import generar_pdf_cierre, generar_pdf_apertura  # deja tu stub
-from utils.excel_tools import to_excel_bytes  # <<< AGREGA ESTA LINEA
+from utils.excel_tools import to_excel_bytes
+from utils.unit_conversion import to_ml
 from utils.path_utils import (
+    CATALOGO_DIR,
     ENTRADAS_DIR,
     TRANSFERENCIAS_DIR,
     VENTAS_PROCESADAS_DIR,
@@ -12,6 +14,7 @@ from utils.path_utils import (
     AUDITORIA_AP_DIR,
     AUDITORIA_CI_DIR,
     REPORTES_PDF_DIR,
+    latest_file,
 )
 
 ENTRADAS_FOLDER = ENTRADAS_DIR
@@ -61,6 +64,15 @@ def auditoria_apertura():
                 return
         if "Requisicion" not in df.columns:
             df["Requisicion"] = 0
+
+        cat_path = latest_file(CATALOGO_DIR, "catalogo")
+        if not cat_path or not os.path.exists(cat_path):
+            st.error("No se encontró el catálogo para validar unidades.")
+            return
+        cat = pd.read_excel(cat_path)
+        df["Conteo Apertura"] = df.apply(lambda r: to_ml(r["Item"], r["Conteo Apertura"], cat), axis=1)
+        df["Requisicion"] = df.apply(lambda r: to_ml(r["Item"], r["Requisicion"], cat), axis=1)
+
         registrar_requisiciones(df, fecha.strftime("%Y-%m-%d"))
         archivos = [f for f in os.listdir(CIERRES_CONFIRMADOS_FOLDER) if f.endswith('.xlsx')]
         if archivos:
@@ -117,6 +129,15 @@ def auditoria_cierre():
                 return
         if "Requisicion" not in df.columns:
             df["Requisicion"] = 0
+
+        cat_path = latest_file(CATALOGO_DIR, "catalogo")
+        if not cat_path or not os.path.exists(cat_path):
+            st.error("No se encontró el catálogo para validar unidades.")
+            return
+        cat = pd.read_excel(cat_path)
+        for col in ["Conteo Apertura", "Conteo Cierre", "Requisicion"]:
+            df[col] = df.apply(lambda r: to_ml(r["Item"], r[col], cat), axis=1)
+
         registrar_requisiciones(df, fecha.strftime("%Y-%m-%d"))
 
         # Cargar los movimientos diarios relevantes
@@ -174,5 +195,6 @@ def auditoria_cierre():
         generar_pdf_cierre(df_res, os.path.join(REPORTES_PDF_FOLDER, pdfout))
         st.success("Auditoría de cierre procesada y registrada.")
         st.dataframe(df_res)
-        # USAR EL NUEVO PATRÓN PARA DESCARGA
-        st
+        st.download_button("Descargar auditoría (Excel)", data=to_excel_bytes(df_res), file_name=outfile)
+        with open(os.path.join(REPORTES_PDF_FOLDER, pdfout), "rb") as f:
+            st.download_button("Descargar auditoría (PDF)", data=f, file_name=pdfout, mime="application/pdf")
