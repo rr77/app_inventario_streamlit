@@ -48,6 +48,7 @@ def registrar_requisiciones(df_audit, fecha):
         df_new = pd.concat([df_old, pd.DataFrame(registros)], ignore_index=True)
     else:
         df_new = pd.DataFrame(registros)
+    df_new = df_new.drop_duplicates(subset=["Fecha", "Item", "Desde", "Hacia", "Cantidad"], keep="first")
     df_new.to_excel(path, index=False)
 
 def auditoria_apertura():
@@ -219,11 +220,12 @@ def auditoria_cierre():
             entradas_sum = entradas[(entradas["Item"] == item) & (entradas["Ubicación destino"] == ubic)]["Cantidad"].sum()
             transf_in = trans[(trans["Item"] == item) & (trans["Hacia"] == ubic)]["Cantidad"].sum()
             transf_out = trans[(trans["Item"] == item) & (trans["Desde"] == ubic)]["Cantidad"].sum()
+            transf_netas = transf_in - transf_out
             if ubic in ["Barra", "Vinera"]:
                 consumo = ventas[(ventas["Item usado"] == item) & (ventas["Ubicación de salida"] == ubic)]["Cantidad teórica consumida"].sum()
             else:
                 consumo = 0
-            teorico_cierre = apertura + entradas_sum + transf_in - transf_out - consumo
+            teorico_cierre = apertura + entradas_sum + transf_netas - consumo
             diferencia = cierre_fisico - teorico_cierre
             pct = (diferencia / teorico_cierre) * 100 if teorico_cierre != 0 else 0
             result.append({
@@ -231,8 +233,7 @@ def auditoria_cierre():
                 "Ubicación": ubic,
                 "Apertura": apertura,
                 "Entradas": entradas_sum,
-                "Transf In": transf_in,
-                "Transf Out": transf_out,
+                "Transferencias Netas": transf_netas,
                 "Salida Teórica": consumo,
                 "Teórico Cierre": teorico_cierre,
                 "Físico Cierre": cierre_fisico,
