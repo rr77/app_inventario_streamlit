@@ -25,6 +25,9 @@ AUDITORIA_AP_FOLDER = AUDITORIA_AP_DIR
 AUDITORIA_CI_FOLDER = AUDITORIA_CI_DIR
 REPORTES_PDF_FOLDER = REPORTES_PDF_DIR
 
+# Ubicaciones disponibles para las auditorías
+UBICACIONES = ["Almacén", "Barra", "Vinera"]
+
 def registrar_requisiciones(df_audit, fecha):
     df_requis = df_audit[(df_audit["Requisicion"] > 0)]
     if df_requis.empty:
@@ -54,14 +57,25 @@ def auditoria_apertura():
     Si el archivo tiene columna 'Requisicion', las transferencias declaradas se registrarán automáticamente.
     """)
     fecha = st.date_input("Fecha de auditoría de apertura", value=datetime.today())
-    archivo = st.file_uploader("Selecciona el archivo de conteo de apertura (Excel plantilla oficial)", type=["xlsx"])
+    ubic_sel = st.selectbox(
+        "Ubicación de la auditoría",
+        ["General"] + UBICACIONES,
+    )
+    archivo = st.file_uploader(
+        "Selecciona el archivo de conteo de apertura (Excel plantilla oficial)",
+        type=["xlsx"],
+    )
     if archivo and st.button("Procesar auditoría de apertura"):
         df = pd.read_excel(archivo)
-        requeridas = ["Fecha", "Item", "Subcategoría", "Ubicación", "Conteo Apertura"]
+        requeridas = ["Fecha", "Item", "Subcategoría", "Conteo Apertura"]
+        if ubic_sel == "General":
+            requeridas.append("Ubicación")
         for req in requeridas:
             if req not in df.columns:
                 st.error(f"Falta columna requerida: {req}")
                 return
+        if ubic_sel != "General":
+            df["Ubicación"] = ubic_sel
         if "Requisicion" not in df.columns:
             df["Requisicion"] = 0
 
@@ -117,14 +131,25 @@ def auditoria_cierre():
     - Genera un reporte detallado.
     """)
     fecha = st.date_input("Fecha de auditoría de cierre", value=datetime.today())
-    archivo = st.file_uploader("Selecciona el archivo de conteo de cierre (Excel plantilla oficial)", type=["xlsx"])
+    ubic_sel = st.selectbox(
+        "Ubicación de la auditoría",
+        ["General"] + UBICACIONES,
+    )
+    archivo = st.file_uploader(
+        "Selecciona el archivo de conteo de cierre (Excel plantilla oficial)",
+        type=["xlsx"],
+    )
     if archivo and st.button("Procesar auditoría de cierre"):
         df = pd.read_excel(archivo)
-        requeridas = ["Fecha", "Item", "Subcategoría", "Ubicación", "Conteo Apertura", "Conteo Cierre"]
+        requeridas = ["Fecha", "Item", "Subcategoría", "Conteo Apertura", "Conteo Cierre"]
+        if ubic_sel == "General":
+            requeridas.append("Ubicación")
         for req in requeridas:
             if req not in df.columns:
                 st.error(f"Falta columna requerida: {req}")
                 return
+        if ubic_sel != "General":
+            df["Ubicación"] = ubic_sel
         if "Requisicion" not in df.columns:
             df["Requisicion"] = 0
 
