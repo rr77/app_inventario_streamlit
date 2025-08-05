@@ -1,8 +1,10 @@
 import streamlit as st
 import pandas as pd
 import os
+import math
 from utils.excel_tools import to_excel_bytes
 from utils.unit_conversion import to_bottles
+from utils.pdf_report import generar_pdf_stock
 from utils.path_utils import (
     ENTRADAS_DIR,
     TRANSFERENCIAS_DIR,
@@ -10,6 +12,7 @@ from utils.path_utils import (
     CIERRES_CONFIRMADOS_DIR,
     AUDITORIA_AP_DIR,
     AUDITORIA_CI_DIR,
+    REPORTES_PDF_DIR,
     latest_file,
 )
 from modules.catalogo import load_catalog
@@ -20,6 +23,7 @@ VENTAS_PROCESADAS_FOLDER = VENTAS_PROCESADAS_DIR
 CIERRES_CONFIRMADOS_FOLDER = CIERRES_CONFIRMADOS_DIR
 AUDITORIA_AP_FOLDER = AUDITORIA_AP_DIR
 AUDITORIA_CI_FOLDER = AUDITORIA_CI_DIR
+REPORTES_PDF_FOLDER = REPORTES_PDF_DIR
 
 LOW_STOCK_THRESHOLD = 3  # botellas
 
@@ -117,6 +121,12 @@ def obtener_ultimo_movimiento():
     return "Sin movimientos registrados"
 
 
+def round_sig(x: float | None, sig: int = 2):
+    if x is None or pd.isna(x) or x == 0:
+        return x
+    return round(x, sig - int(math.floor(math.log10(abs(x)))) - 1)
+
+
 def stock_module():
     st.title("Stock Actual por Ubicación")
     st.info(
@@ -125,6 +135,9 @@ def stock_module():
     El cálculo parte del último cierre confirmado.
     """
     )
+
+    # Asegurar carpeta de reportes
+    os.makedirs(REPORTES_PDF_FOLDER, exist_ok=True)
 
     cat = load_catalog()
     if cat.empty or "Item" not in cat.columns:
@@ -192,9 +205,7 @@ def stock_module():
                     "Producto": item,
                     "Subcategoría": subcat,
                     "Ubicación": ubic,
-                    "Stock Botellas": round(stock_botellas, 2)
-                    if stock_botellas is not None
-                    else None,
+                    "Stock Botellas": round_sig(stock_botellas, 2),
                 }
             )
 
@@ -248,4 +259,16 @@ def stock_module():
         data=to_excel_bytes(df_stock),
         file_name="stock_actual.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+    fecha_hoy = pd.Timestamp.today().strftime("%Y-%m-%d")
+    pdfout = f"stock_{fecha_hoy}.pdf"
+    pdf_bytes = generar_pdf_stock(
+        df_stock, os.path.join(REPORTES_PDF_FOLDER, pdfout)
+    )
+    st.download_button(
+        label="Descargar Stock Actual (PDF)",
+        data=pdf_bytes,
+        file_name=pdfout,
+        mime="application/pdf",
     )
