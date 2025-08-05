@@ -94,6 +94,8 @@ def auditoria_apertura():
             prev = pd.read_excel(ult_cierre)
         else:
             prev = pd.DataFrame(columns=["Item", "Ubicación", "Físico Cierre"])
+        if prev.empty:
+            st.warning("No se encontró auditoría de cierre del día anterior.")
         result = []
         for idx, row in df.iterrows():
             cierre_prev = prev[
