@@ -101,6 +101,8 @@ def auditoria_apertura():
         )
         if os.path.exists(cierre_prev_path):
             prev = pd.read_excel(cierre_prev_path)
+            if "Conteo Cierre" in prev.columns and "Físico Cierre" not in prev.columns:
+                prev = prev.rename(columns={"Conteo Cierre": "Físico Cierre"})
         else:
             prev = pd.DataFrame(columns=["Item", "Ubicación", "Físico Cierre"])
             st.warning("No se encontró auditoría de cierre del día anterior.")
@@ -205,6 +207,7 @@ def auditoria_cierre():
             df["Conteo Apertura"] = df.apply(
                 lambda r: to_ml(r["Item"], r["Conteo Apertura"], cat), axis=1
             )
+        df.rename(columns={"Conteo Cierre": "Físico Cierre"}, inplace=True)
 
         registrar_requisiciones(df, fecha.strftime("%Y-%m-%d"))
 
@@ -232,7 +235,7 @@ def auditoria_cierre():
         for idx, row in df.iterrows():
             item, ubic = row["Item"], row["Ubicación"]
             apertura = float(row["Conteo Apertura"])
-            cierre_fisico = float(row["Conteo Cierre"])
+            cierre_fisico = float(row["Físico Cierre"])
             entradas_sum = entradas[(entradas["Item"] == item) & (entradas["Ubicación destino"] == ubic)]["Cantidad"].sum()
             transf_in = trans[(trans["Item"] == item) & (trans["Hacia"] == ubic)]["Cantidad"].sum()
             transf_out = trans[(trans["Item"] == item) & (trans["Desde"] == ubic)]["Cantidad"].sum()
@@ -246,10 +249,11 @@ def auditoria_cierre():
             result.append({
                 "Item": item,
                 "Ubicación": ubic,
+                "Físico Cierre": cierre_fisico,
                 "Teorico": teorico_cierre,
                 "Diferencia": diferencia,
             })
-        df_res = pd.DataFrame(result, columns=["Item", "Ubicación", "Teorico", "Diferencia"])
+        df_res = pd.DataFrame(result, columns=["Item", "Ubicación", "Físico Cierre", "Teorico", "Diferencia"])
         outfile = f"auditoria_cierre_{fecha.strftime('%Y-%m-%d')}.xlsx"
         pdfout = outfile.replace('.xlsx', '.pdf')
         out_path = os.path.join(AUDITORIA_CI_FOLDER, outfile)
