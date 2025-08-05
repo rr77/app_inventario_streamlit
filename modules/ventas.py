@@ -3,6 +3,7 @@ import pandas as pd
 import os
 from datetime import datetime
 from utils.excel_tools import to_excel_bytes  # Agrega esta línea
+from utils.units import to_ml, to_bottles
 
 CATALOGO_PATH = "catalogo/catalogo.xlsx"
 RECETAS_PATH = "recetas/recetas.xlsx"
@@ -66,12 +67,15 @@ def procesar_ventas(df_ventas, df_recetas, df_reglas, catalogo, fecha_asignada):
                 item = rec["Item usado"]
                 subcat = rec["Subcategoría"]
                 cant_unit = rec["Cantidad usada"]
+                cant_ml = to_ml(catalogo, item, cant_unit)
+                total_ml = cant_ml * cantidad_vendida
                 result.append({
                     "Fecha": fecha,
                     "Producto vendido": prod_vendido,
                     "Item usado": item,
                     "Subcategoría": subcat,
-                    "Cantidad teórica consumida": cant_unit * cantidad_vendida,
+                    "Cantidad teórica consumida": total_ml,
+                    "Cantidad botellas consumidas": to_bottles(catalogo, item, total_ml),
                     "Ubicación de salida": ubic
                 })
         else:
@@ -81,12 +85,15 @@ def procesar_ventas(df_ventas, df_recetas, df_reglas, catalogo, fecha_asignada):
                 regla = df_reglas[df_reglas["Subcategoría"] == subcat]
                 if not regla.empty:
                     cant_std = regla.iloc[0]["Cantidad estándar usada"]
+                    cant_ml = to_ml(catalogo, prod_vendido, cant_std)
+                    total_ml = cant_ml * cantidad_vendida
                     result.append({
                         "Fecha": fecha,
                         "Producto vendido": prod_vendido,
                         "Item usado": prod_vendido,
                         "Subcategoría": subcat,
-                        "Cantidad teórica consumida": cant_std * cantidad_vendida,
+                        "Cantidad teórica consumida": total_ml,
+                        "Cantidad botellas consumidas": to_bottles(catalogo, prod_vendido, total_ml),
                         "Ubicación de salida": ubic
                     })
     return pd.DataFrame(result)

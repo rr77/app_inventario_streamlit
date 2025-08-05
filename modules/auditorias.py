@@ -4,6 +4,7 @@ import os
 from datetime import datetime
 from utils.pdf_report import generar_pdf_cierre, generar_pdf_apertura  # deja tu stub
 from utils.excel_tools import to_excel_bytes  # <<< AGREGA ESTA LINEA
+from utils.units import to_ml, to_bottles
 
 CATALOGO_PATH = "catalogo/catalogo.xlsx"
 ENTRADAS_FOLDER = "entradas/"
@@ -54,6 +55,9 @@ def auditoria_apertura():
         if "Requisicion" not in df.columns:
             df["Requisicion"] = 0
         registrar_requisiciones(df, fecha.strftime("%Y-%m-%d"))
+
+        catalogo = pd.read_excel(CATALOGO_PATH)
+
         archivos = [f for f in os.listdir(CIERRES_CONFIRMADOS_FOLDER) if f.endswith('.xlsx')]
         if archivos:
             ult_cierre = os.path.join(CIERRES_CONFIRMADOS_FOLDER, sorted(archivos, reverse=True)[0])
@@ -67,13 +71,17 @@ def auditoria_apertura():
                 (prev["Ubicación"] == row["Ubicación"])
             ]
             cierre_anterior = float(cierre_prev.iloc[0]["Físico Cierre"]) if not cierre_prev.empty else 0
-            diferencia = float(row["Conteo Apertura"]) - cierre_anterior
+            apertura_val = float(row["Conteo Apertura"])
+            cierre_ml = to_ml(catalogo, row["Item"], cierre_anterior)
+            apertura_ml = to_ml(catalogo, row["Item"], apertura_val)
+            diferencia_ml = apertura_ml - cierre_ml
             result.append({
                 "Item": row["Item"],
                 "Ubicación": row["Ubicación"],
-                "Cierre anterior": cierre_anterior,
-                "Apertura actual": row["Conteo Apertura"],
-                "Diferencia": diferencia
+                "Cierre anterior": cierre_ml,
+                "Apertura actual": apertura_ml,
+                "Apertura Botellas": to_bottles(catalogo, row["Item"], apertura_ml),
+                "Diferencia": diferencia_ml
             })
         df_res = pd.DataFrame(result)
         outfile = f"auditoria_apertura_{fecha.strftime('%Y-%m-%d')}.xlsx"
@@ -111,6 +119,8 @@ def auditoria_cierre():
             df["Requisicion"] = 0
         registrar_requisiciones(df, fecha.strftime("%Y-%m-%d"))
 
+        catalogo = pd.read_excel(CATALOGO_PATH)
+
         # Cargar los movimientos diarios relevantes
         entradas_arch = os.path.join(ENTRADAS_FOLDER, f"entradas_{fecha.strftime('%Y-%m-%d')}.xlsx")
         if os.path.exists(entradas_arch):
@@ -136,27 +146,43 @@ def auditoria_cierre():
             item, ubic = row["Item"], row["Ubicación"]
             apertura = float(row["Conteo Apertura"])
             cierre_fisico = float(row["Conteo Cierre"])
-            entradas_sum = entradas[(entradas["Item"] == item) & (entradas["Ubicación destino"] == ubic)]["Cantidad"].sum()
-            transf_in = trans[(trans["Item"] == item) & (trans["Hacia"] == ubic)]["Cantidad"].sum()
-            transf_out = trans[(trans["Item"] == item) & (trans["Desde"] == ubic)]["Cantidad"].sum()
+
+            entradas_rows = entradas[(entradas["Item"] == item) & (entradas["Ubicación destino"] == ubic)]
+            entradas_sum = entradas_rows.apply(lambda r: to_ml(catalogo, r["Item"], float(r["Cantidad"])), axis=1).sum()
+
+            transf_in_rows = trans[(trans["Item"] == item) & (trans["Hacia"] == ubic)]
+            transf_in = transf_in_rows.apply(lambda r: to_ml(catalogo, r["Item"], float(r["Cantidad"])), axis=1).sum()
+
+            transf_out_rows = trans[(trans["Item"] == item) & (trans["Desde"] == ubic)]
+            transf_out = transf_out_rows.apply(lambda r: to_ml(catalogo, r["Item"], float(r["Cantidad"])), axis=1).sum()
+
             if ubic in ["Barra", "Vinera"]:
                 consumo = ventas[(ventas["Item usado"] == item) & (ventas["Ubicación de salida"] == ubic)]["Cantidad teórica consumida"].sum()
             else:
                 consumo = 0
-            teorico_cierre = apertura + entradas_sum + transf_in - transf_out - consumo
-            diferencia = cierre_fisico - teorico_cierre
+
+            apertura_ml = to_ml(catalogo, item, apertura)
+            cierre_ml = to_ml(catalogo, item, cierre_fisico)
+            teorico_cierre = apertura_ml + entradas_sum + transf_in - transf_out - consumo
+            diferencia = cierre_ml - teorico_cierre
             pct = (diferencia / teorico_cierre) * 100 if teorico_cierre != 0 else 0
+
             result.append({
                 "Item": item,
                 "Ubicación": ubic,
-                "Apertura": apertura,
+                "Apertura": apertura_ml,
+                "Apertura Botellas": to_bottles(catalogo, item, apertura_ml),
                 "Entradas": entradas_sum,
                 "Transf In": transf_in,
                 "Transf Out": transf_out,
                 "Salida Teórica": consumo,
+                "Salida Teórica Botellas": to_bottles(catalogo, item, consumo),
                 "Teórico Cierre": teorico_cierre,
-                "Físico Cierre": cierre_fisico,
+                "Teórico Cierre Botellas": to_bottles(catalogo, item, teorico_cierre),
+                "Físico Cierre": cierre_ml,
+                "Físico Cierre Botellas": to_bottles(catalogo, item, cierre_ml),
                 "Diferencia": diferencia,
+                "Diferencia Botellas": to_bottles(catalogo, item, diferencia),
                 "%": round(pct, 2)
             })
         df_res = pd.DataFrame(result)
@@ -167,4 +193,7 @@ def auditoria_cierre():
         st.success("Auditoría de cierre procesada y registrada.")
         st.dataframe(df_res)
         # USAR EL NUEVO PATRÓN PARA DESCARGA
-        st
+        st.download_button("Descargar auditoría (Excel)", data=to_excel_bytes(df_res),
+            file_name=outfile)
+        with open(os.path.join(REPORTES_PDF_FOLDER, pdfout), "rb") as f:
+            st.download_button("Descargar auditoría (PDF)", data=f, file_name=pdfout, mime="application/pdf")
