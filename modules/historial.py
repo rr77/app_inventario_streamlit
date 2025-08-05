@@ -32,11 +32,15 @@ def cargar_historial(tipo, path):
             # Estandariza columnas comunes (Item, Ubicación, Fecha, Subcategoría si existe)
             if "Ubicación destino" in df.columns and "Ubicación" not in df.columns:
                 df["Ubicación"] = df["Ubicación destino"]
+            if "Ubicación de salida" in df.columns and "Ubicación" not in df.columns:
+                df["Ubicación"] = df["Ubicación de salida"]
             if "Hacia" in df.columns and "Ubicación" not in df.columns:
                 df["Ubicación"] = df["Hacia"]  # solo para transferencias de llegada
-            if "Conteo Apertura" in df.columns or "Conteo Cierre" in df.columns:
-                if "Ubicación" not in df.columns and "Ubicación" in df:
-                    df["Ubicación"] = df["Ubicación"]
+
+            if "Producto vendido" in df.columns and "Item" not in df.columns:
+                df["Item"] = df["Producto vendido"]
+            if "Item usado" in df.columns and "Item" not in df.columns:
+                df["Item"] = df["Item usado"]
             registros.append(df)
         except Exception as e:
             st.warning(f"No fue posible leer {archivo}: {e}")

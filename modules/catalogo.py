@@ -6,7 +6,7 @@ from utils.path_utils import CATALOGO_DIR, latest_file
 
 
 EXPECTED_COLUMNS = [
-    "Nombre",
+    "Item",
     "Subcategoría",
     "Tipo_venta",
     "Unidad",
@@ -20,6 +20,8 @@ def load_catalog():
     path = latest_file(CATALOGO_DIR, "catalogo")
     if path and os.path.exists(path):
         df = pd.read_excel(path)
+        if "Item" not in df.columns and "Nombre" in df.columns:
+            df = df.rename(columns={"Nombre": "Item"})
     else:
         # Si el catálogo no existe, retorna DataFrame vacío con columnas esperadas
         df = pd.DataFrame(columns=EXPECTED_COLUMNS)
@@ -28,6 +30,8 @@ def load_catalog():
     if missing:
         st.error(f"Catálogo incompleto. Faltan columnas: {', '.join(missing)}")
         df = df.reindex(columns=EXPECTED_COLUMNS)
+    if "Nombre" not in df.columns and "Item" in df.columns:
+        df["Nombre"] = df["Item"]
 
     # Validaciones específicas por tipo de venta
     if not df.empty:
@@ -68,7 +72,7 @@ def catalogo_module():
 
     st.info(
         "**Formato requerido:**\n"
-        "- Nombre\n"
+        "- Item\n"
         "- Subcategoría\n"
         "- Tipo_venta (BOT, TRG, CTL)\n"
         "- Unidad (ml, botella, etc.)\n"

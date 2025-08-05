@@ -10,7 +10,6 @@ from modules.catalogo import load_catalog
 EXPECTED_COLUMNS = [
     "Producto_vendido",
     "Ingrediente",
-    "Cantidad_usada",
     "Unidad",
 ]
 
@@ -30,11 +29,11 @@ def load_recetas(catalogo: pd.DataFrame | None = None) -> pd.DataFrame:
     missing = [c for c in EXPECTED_COLUMNS if c not in df.columns]
     if missing:
         st.error(f"Recetas incompletas. Faltan columnas: {', '.join(missing)}")
-        df = df.reindex(columns=EXPECTED_COLUMNS)
+    df = df.reindex(columns=EXPECTED_COLUMNS)
 
     if catalogo is not None and not df.empty:
         ctl_products = set(
-            catalogo[catalogo["Tipo_venta"] == "CTL"]["Nombre"].dropna()
+            catalogo[catalogo["Tipo_venta"] == "CTL"]["Item"].dropna()
         )
         for prod in df["Producto_vendido"].dropna().unique():
             if prod not in ctl_products:
@@ -42,12 +41,19 @@ def load_recetas(catalogo: pd.DataFrame | None = None) -> pd.DataFrame:
                     f"'{prod}' en recetas no está definido como CTL en el catálogo."
                 )
 
-        catalog_items = set(catalogo["Nombre"].dropna())
+        catalog_items = set(catalogo["Item"].dropna())
         for ing in df["Ingrediente"].dropna().unique():
             if ing not in catalog_items:
                 st.warning(
                     f"Ingrediente '{ing}' no existe en el catálogo."
                 )
+
+        dosis_map = catalogo.set_index("Item")["Dosis_ml"]
+        df["Cantidad_usada"] = df["Ingrediente"].map(dosis_map)
+    else:
+        df["Cantidad_usada"] = None
+
+    df = df[["Producto_vendido", "Ingrediente", "Cantidad_usada", "Unidad"]]
     return df
 
 
@@ -77,7 +83,7 @@ def recetas_module():
         "**Formato requerido:**\n"
         "- Producto_vendido\n"
         "- Ingrediente\n"
-        "- Cantidad_usada\n"
-        "- Unidad"
+        "- Unidad\n"
+        "*(Cantidad_usada se toma automáticamente del catálogo)*"
     )
 
