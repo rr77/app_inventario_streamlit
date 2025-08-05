@@ -85,7 +85,9 @@ def stock_module():
     ventas = load_all_ventas()
 
     ubicaciones = ["Almacén", "Barra", "Vinera"]
-    items = cat["Item"].unique()
+    # Excluir productos que sean cocteles/cocktails del stock
+    cat_filtrado = cat[~cat["Item"].str.contains(r"(?i)c[oó]ctel(?:es)?|cocktail", na=False)]
+    items = cat_filtrado["Item"].unique()
 
     stock = []
     for item in items:
@@ -114,18 +116,23 @@ def stock_module():
             stock.append({
                 "Item": item,
                 "Ubicación": ubic,
-                "Stock Actual": cantidad,
-                "Stock Botellas": round(stock_botellas, 2) if stock_botellas is not None else None,
+                "Stock teórico (unidad base)": cantidad,
+                "Stock equivalente (botellas)": round(stock_botellas, 2) if stock_botellas is not None else None,
             })
 
     df_stock = pd.DataFrame(stock)
+    # eliminar filas sin stock para evitar mostrar ubicaciones innecesarias
+    df_stock = df_stock[df_stock["Stock teórico (unidad base)"] != 0]
 
     # FILTRO POR UBICACIÓN
     ubicacion_sel = st.selectbox("Filtrar por ubicación", options=["TODAS"] + ubicaciones)
     if ubicacion_sel != "TODAS":
         df_stock = df_stock[df_stock["Ubicación"] == ubicacion_sel]
 
-    st.dataframe(df_stock, use_container_width=True)
+    df_display = df_stock.copy()
+    df_display["Stock equivalente (botellas)"] = df_display["Stock equivalente (botellas)"].apply(lambda x: "" if pd.isna(x) else x)
+
+    st.dataframe(df_display, use_container_width=True)
 
     st.download_button(
         label="Descargar Stock Actual (Excel)",
