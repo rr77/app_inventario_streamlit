@@ -137,7 +137,10 @@ def ventas_module():
 
     if archivo:
         try:
-            df_ventas = pd.read_excel(archivo)
+            # La primera fila del archivo generado por el POS viene vacía,
+            # por lo que se usa header=1 para ignorarla y tomar los nombres
+            # de las columnas de la segunda fila.
+            df_ventas = pd.read_excel(archivo, header=1)
         except Exception as e:
             st.error(f"Error leyendo archivo de ventas: {e}")
             return
