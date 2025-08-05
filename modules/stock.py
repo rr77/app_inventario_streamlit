@@ -4,13 +4,12 @@ import os
 from utils.excel_tools import to_excel_bytes
 from utils.unit_conversion import to_bottles
 from utils.path_utils import (
-    CATALOGO_DIR,
     ENTRADAS_DIR,
     TRANSFERENCIAS_DIR,
     VENTAS_PROCESADAS_DIR,
     CIERRES_CONFIRMADOS_DIR,
-    latest_file,
 )
+from modules.catalogo import load_catalog
 
 ENTRADAS_FOLDER = ENTRADAS_DIR
 TRANSFERENCIAS_FOLDER = TRANSFERENCIAS_DIR
@@ -74,11 +73,10 @@ def stock_module():
     El cálculo parte del último cierre confirmado.
     """)
 
-    cat_path = latest_file(CATALOGO_DIR, "catalogo")
-    if not cat_path or not os.path.exists(cat_path):
-        st.warning("No se encontró el catálogo.")
+    cat = load_catalog()
+    if cat.empty or "Item" not in cat.columns:
+        st.warning("No se encontró el catálogo o falta la columna 'Item'.")
         return
-    cat = pd.read_excel(cat_path)
     stock_inicial = load_last_cierre()
     entradas = load_all_entradas()
     transferencias = load_all_transferencias()
