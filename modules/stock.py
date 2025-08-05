@@ -1,13 +1,19 @@
 import streamlit as st
 import pandas as pd
 import os
+import math
 from utils.excel_tools import to_excel_bytes
 from utils.unit_conversion import to_bottles
+from utils.pdf_report import generar_pdf_stock
 from utils.path_utils import (
     ENTRADAS_DIR,
     TRANSFERENCIAS_DIR,
     VENTAS_PROCESADAS_DIR,
     CIERRES_CONFIRMADOS_DIR,
+    AUDITORIA_AP_DIR,
+    AUDITORIA_CI_DIR,
+    REPORTES_PDF_DIR,
+    latest_file,
 )
 from modules.catalogo import load_catalog
 
@@ -15,6 +21,9 @@ ENTRADAS_FOLDER = ENTRADAS_DIR
 TRANSFERENCIAS_FOLDER = TRANSFERENCIAS_DIR
 VENTAS_PROCESADAS_FOLDER = VENTAS_PROCESADAS_DIR
 CIERRES_CONFIRMADOS_FOLDER = CIERRES_CONFIRMADOS_DIR
+AUDITORIA_AP_FOLDER = AUDITORIA_AP_DIR
+AUDITORIA_CI_FOLDER = AUDITORIA_CI_DIR
+REPORTES_PDF_FOLDER = REPORTES_PDF_DIR
 
 LOW_STOCK_THRESHOLD = 3  # botellas
 
@@ -82,6 +91,42 @@ def load_last_cierre():
     return df, True
 
 
+def obtener_ultimo_movimiento():
+    """Devuelve descripción del movimiento más reciente registrado."""
+    movimientos = [
+        (ENTRADAS_FOLDER, "Entrada", "entradas"),
+        (TRANSFERENCIAS_FOLDER, "Transferencia", "transferencias"),
+        (VENTAS_PROCESADAS_FOLDER, "Salida", "ventas_procesadas"),
+        (AUDITORIA_AP_FOLDER, "Auditoría de apertura", "auditoria_apertura"),
+        (AUDITORIA_CI_FOLDER, "Auditoría de cierre", "auditoria_cierre"),
+    ]
+    ultimo = None
+    tipo = ""
+    pref_ultimo = ""
+    for folder, etiqueta, pref in movimientos:
+        archivo = latest_file(folder, pref)
+        if archivo:
+            mtime = os.path.getmtime(archivo)
+            if not ultimo or mtime > ultimo[0]:
+                ultimo = (mtime, archivo)
+                tipo = etiqueta
+                pref_ultimo = pref
+    if ultimo:
+        fecha = (
+            os.path.basename(ultimo[1])
+            .replace(f"{pref_ultimo}_", "")
+            .replace(".xlsx", "")
+        )
+        return f"{tipo} ({fecha})"
+    return "Sin movimientos registrados"
+
+
+def round_sig(x: float | None, sig: int = 2):
+    if x is None or pd.isna(x) or x == 0:
+        return x
+    return round(x, sig - int(math.floor(math.log10(abs(x)))) - 1)
+
+
 def stock_module():
     st.title("Stock Actual por Ubicación")
     st.info(
@@ -100,6 +145,8 @@ def stock_module():
         st.warning(
             "No se encontró un cierre confirmado. El stock se calcula desde cero."
         )
+    ult_mov = obtener_ultimo_movimiento()
+    st.caption(f"Último movimiento registrado: {ult_mov}")
     entradas = load_all_entradas()
     transferencias = load_all_transferencias()
     ventas = load_all_ventas()
@@ -155,9 +202,7 @@ def stock_module():
                     "Producto": item,
                     "Subcategoría": subcat,
                     "Ubicación": ubic,
-                    "Stock Botellas": round(stock_botellas, 2)
-                    if stock_botellas is not None
-                    else None,
+                    "Stock Botellas": round_sig(stock_botellas, 2),
                 }
             )
 
@@ -211,4 +256,16 @@ def stock_module():
         data=to_excel_bytes(df_stock),
         file_name="stock_actual.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+    fecha_hoy = pd.Timestamp.today().strftime("%Y-%m-%d")
+    pdfout = f"stock_{fecha_hoy}.pdf"
+    pdf_bytes = generar_pdf_stock(
+        df_stock, os.path.join(REPORTES_PDF_FOLDER, pdfout)
+    )
+    st.download_button(
+        label="Descargar Stock Actual (PDF)",
+        data=pdf_bytes,
+        file_name=pdfout,
+        mime="application/pdf",
     )

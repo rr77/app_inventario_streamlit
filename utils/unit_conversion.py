@@ -2,21 +2,25 @@ import pandas as pd
 
 
 def to_ml(item: str, cantidad: float, catalogo: pd.DataFrame) -> float:
-    """Convert `cantidad` to milliliters based on catalog info.
+    """Convert ``cantidad`` to milliliters based on catalog info.
 
-    If the item has "Tipo de unidad" == "ml" and "Cantidad por unidad" > 0,
-    the input is assumed to be expressed in whole bottles and is converted to ml.
-    Otherwise the quantity is returned unchanged.
+    El catálogo puede definir la capacidad de cada ítem ya sea usando las
+    columnas antiguas (``Tipo de unidad`` y ``Cantidad por unidad``) o la
+    estructura más reciente (``Unidad`` y ``Volumen_ml_por_unidad``).
+    Si se encuentra una capacidad válida, se asume que ``cantidad`` está
+    expresada en unidades de botella y se convierte a mililitros.
     """
     if catalogo is None or catalogo.empty:
         return cantidad
     row = catalogo[catalogo["Item"] == item]
     if row.empty:
         return cantidad
-    tipo = row.iloc[0].get("Tipo de unidad")
-    capacidad = row.iloc[0].get("Cantidad por unidad")
+    capacidad = (
+        row.iloc[0].get("Volumen_ml_por_unidad")
+        or row.iloc[0].get("Cantidad por unidad")
+    )
     try:
-        if tipo == "ml" and pd.notnull(capacidad) and float(capacidad) > 0:
+        if pd.notnull(capacidad) and float(capacidad) > 0:
             return float(cantidad) * float(capacidad)
     except Exception:
         pass
@@ -24,21 +28,24 @@ def to_ml(item: str, cantidad: float, catalogo: pd.DataFrame) -> float:
 
 
 def to_bottles(item: str, cantidad_ml: float, catalogo: pd.DataFrame):
-    """Return the number of bottles represented by `cantidad_ml`.
+    """Return the number of bottles represented by ``cantidad_ml``.
 
-    If the catalog registers the item in milliliters and has a valid
-    "Cantidad por unidad", the value is converted and returned. In case the
-    conversion cannot be performed, ``None`` is returned.
+    Se busca la capacidad en mililitros de cada ítem en el catálogo. Para
+    compatibilidad, se aceptan tanto las columnas antiguas (``Cantidad por
+    unidad``) como la nomenclatura reciente (``Volumen_ml_por_unidad``). Si no
+    es posible realizar la conversión, se retorna ``None``.
     """
     if catalogo is None or catalogo.empty:
         return None
     row = catalogo[catalogo["Item"] == item]
     if row.empty:
         return None
-    tipo = row.iloc[0].get("Tipo de unidad")
-    capacidad = row.iloc[0].get("Cantidad por unidad")
+    capacidad = (
+        row.iloc[0].get("Volumen_ml_por_unidad")
+        or row.iloc[0].get("Cantidad por unidad")
+    )
     try:
-        if tipo == "ml" and pd.notnull(capacidad) and float(capacidad) > 0:
+        if pd.notnull(capacidad) and float(capacidad) > 0:
             return float(cantidad_ml) / float(capacidad)
     except Exception:
         pass
