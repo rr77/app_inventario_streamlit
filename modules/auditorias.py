@@ -242,20 +242,13 @@ def auditoria_cierre():
                 consumo = 0
             teorico_cierre = apertura + entradas_sum + transf_netas - consumo
             diferencia = cierre_fisico - teorico_cierre
-            pct = (diferencia / teorico_cierre) * 100 if teorico_cierre != 0 else 0
             result.append({
                 "Item": item,
                 "Ubicación": ubic,
-                "Apertura": apertura,
-                "Entradas": entradas_sum,
-                "Transferencias Netas": transf_netas,
-                "Salida Teórica": consumo,
-                "Teórico Cierre": teorico_cierre,
-                "Físico Cierre": cierre_fisico,
+                "Teorico": teorico_cierre,
                 "Diferencia": diferencia,
-                "%": round(pct, 2)
             })
-        df_res = pd.DataFrame(result)
+        df_res = pd.DataFrame(result, columns=["Item", "Ubicación", "Teorico", "Diferencia"])
         outfile = f"auditoria_cierre_{fecha.strftime('%Y-%m-%d')}.xlsx"
         pdfout = outfile.replace('.xlsx', '.pdf')
         out_path = os.path.join(AUDITORIA_CI_FOLDER, outfile)
