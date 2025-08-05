@@ -77,3 +77,23 @@ def generar_pdf_cierre(df, ruta_pdf=None):
         with open(ruta_pdf, "wb") as f:
             f.write(pdf_bytes)
     return pdf_bytes
+
+
+def generar_pdf_stock(df, ruta_pdf=None):
+    """Genera un reporte PDF genérico para el módulo de stock."""
+    pdf = PDF()
+    pdf.title = "Reporte de Stock Actual"
+    pdf.add_page()
+    pdf.set_fill_color(220, 220, 220)
+    pdf.set_font("Arial", "B", 11)
+    pdf.cell(0, 10, f"Fecha: {datetime.today().strftime('%Y-%m-%d')}", ln=1)
+    pdf.ln(2)
+    pdf.tabla(df.round(2))
+    pdf.ln(6)
+    pdf.set_font("Arial", "I", 10)
+    pdf.cell(0, 10, "Reporte generado automáticamente por el sistema de inventario.", ln=1)
+    pdf_bytes = pdf.output(dest="S").encode("latin-1")
+    if ruta_pdf:
+        with open(ruta_pdf, "wb") as f:
+            f.write(pdf_bytes)
+    return pdf_bytes
