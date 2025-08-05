@@ -168,11 +168,16 @@ def ventas_module():
             else:
                 output_file = f"ventas_procesadas_{fecha.strftime('%Y-%m-%d')}.xlsx"
                 out_path = os.path.join(VENTAS_PROCESADAS_FOLDER, output_file)
-                df_proc.to_excel(out_path, index=False)
+                try:
+                    with pd.ExcelWriter(out_path, engine="xlsxwriter") as writer:
+                        df_proc.to_excel(writer, index=False)
+                except Exception as e:
+                    st.error(f"Error guardando ventas procesadas: {e}")
+                    return
                 st.success(f"Ventas procesadas. Archivo guardado como: {output_file}")
                 st.dataframe(df_proc)
                 st.download_button(
-                    label="Descargar consumo teórico", 
+                    label="Descargar consumo teórico",
                     data=to_excel_bytes(df_proc),
                     file_name=output_file,
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

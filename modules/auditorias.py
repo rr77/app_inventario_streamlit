@@ -49,7 +49,11 @@ def registrar_requisiciones(df_audit, fecha):
     else:
         df_new = pd.DataFrame(registros)
     df_new = df_new.drop_duplicates(subset=["Fecha", "Item", "Desde", "Hacia", "Cantidad"], keep="first")
-    df_new.to_excel(path, index=False)
+    try:
+        with pd.ExcelWriter(path, engine="xlsxwriter") as writer:
+            df_new.to_excel(writer, index=False)
+    except Exception as e:
+        st.error(f"Error guardando transferencias: {e}")
 
 def auditoria_apertura():
     st.title("Auditoría de Apertura")
@@ -115,8 +119,16 @@ def auditoria_apertura():
         df_res = pd.DataFrame(result)
         outfile = f"auditoria_apertura_{fecha.strftime('%Y-%m-%d')}.xlsx"
         pdfout = outfile.replace('.xlsx', '.pdf')
-        df_res.to_excel(os.path.join(AUDITORIA_AP_FOLDER, outfile), index=False)
-        pdf_bytes = generar_pdf_apertura(df_res, os.path.join(REPORTES_PDF_FOLDER, pdfout))
+        out_path = os.path.join(AUDITORIA_AP_FOLDER, outfile)
+        try:
+            with pd.ExcelWriter(out_path, engine="xlsxwriter") as writer:
+                df_res.to_excel(writer, index=False)
+            pdf_bytes = generar_pdf_apertura(
+                df_res, os.path.join(REPORTES_PDF_FOLDER, pdfout)
+            )
+        except Exception as e:
+            st.error(f"Error guardando auditoría: {e}")
+            return
         st.success("Auditoría procesada y registrada.")
         st.dataframe(df_res)
         # USAR EL NUEVO PATRÓN PARA DESCARGA
@@ -243,8 +255,16 @@ def auditoria_cierre():
         df_res = pd.DataFrame(result)
         outfile = f"auditoria_cierre_{fecha.strftime('%Y-%m-%d')}.xlsx"
         pdfout = outfile.replace('.xlsx', '.pdf')
-        df_res.to_excel(os.path.join(AUDITORIA_CI_FOLDER, outfile), index=False)
-        pdf_bytes = generar_pdf_cierre(df_res, os.path.join(REPORTES_PDF_FOLDER, pdfout))
+        out_path = os.path.join(AUDITORIA_CI_FOLDER, outfile)
+        try:
+            with pd.ExcelWriter(out_path, engine="xlsxwriter") as writer:
+                df_res.to_excel(writer, index=False)
+            pdf_bytes = generar_pdf_cierre(
+                df_res, os.path.join(REPORTES_PDF_FOLDER, pdfout)
+            )
+        except Exception as e:
+            st.error(f"Error guardando auditoría: {e}")
+            return
         st.success("Auditoría de cierre procesada y registrada.")
         st.dataframe(df_res)
         st.download_button("Descargar auditoría (Excel)", data=to_excel_bytes(df_res), file_name=outfile)

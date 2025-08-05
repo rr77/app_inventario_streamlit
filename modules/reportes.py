@@ -6,7 +6,11 @@ from datetime import datetime
 from modules.catalogo import load_catalog
 from modules.stock import load_last_cierre, calcular_stock_actual
 from utils.pdf_report import generar_pdf_stock
-from utils.path_utils import REPORTES_PDF_DIR
+from utils.path_utils import (
+    REPORTES_PDF_DIR,
+    AUDITORIA_AP_DIR,
+    AUDITORIA_CI_DIR,
+)
 
 
 def _listar_pdfs(patron):
@@ -21,6 +25,21 @@ def _listar_pdfs(patron):
                 data=f,
                 file_name=os.path.basename(archivo),
                 mime="application/pdf",
+            )
+
+
+def _listar_excels(folder):
+    archivos = sorted(glob(os.path.join(folder, "*.xlsx")), reverse=True)
+    if not archivos:
+        st.info("No hay reportes disponibles.")
+        return
+    for archivo in archivos:
+        with open(archivo, "rb") as f:
+            st.download_button(
+                label=os.path.basename(archivo),
+                data=f,
+                file_name=os.path.basename(archivo),
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             )
 
 
@@ -57,9 +76,17 @@ def reportes_module():
     with tab_diario:
         sub_ap, sub_ci = st.tabs(["Apertura", "Cierre"])
         with sub_ap:
-            _listar_pdfs("auditoria_apertura_*.pdf")
+            ap_pdf, ap_excel = st.tabs(["PDF", "Excel"])
+            with ap_pdf:
+                _listar_pdfs("auditoria_apertura_*.pdf")
+            with ap_excel:
+                _listar_excels(AUDITORIA_AP_DIR)
         with sub_ci:
-            _listar_pdfs("auditoria_cierre_*.pdf")
+            ci_pdf, ci_excel = st.tabs(["PDF", "Excel"])
+            with ci_pdf:
+                _listar_pdfs("auditoria_cierre_*.pdf")
+            with ci_excel:
+                _listar_excels(AUDITORIA_CI_DIR)
         st.caption(
             "Para generar nuevos reportes diarios utilice los módulos de auditoría en el menú principal."
         )

@@ -49,7 +49,11 @@ def plantilla_module():
     ruta = os.path.join(PLANTILLAS_FOLDER, nombre_archivo)
 
     # Guardar el archivo plantilla, aunque la app permite descargar directo
-    df_plantilla.to_excel(ruta, index=False)
+    try:
+        with pd.ExcelWriter(ruta, engine="xlsxwriter") as writer:
+            df_plantilla.to_excel(writer, index=False)
+    except Exception as e:
+        st.error(f"Error guardando plantilla: {e}")
 
     st.dataframe(df_plantilla.head(12))
 
