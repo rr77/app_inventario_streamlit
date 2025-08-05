@@ -99,14 +99,12 @@ def auditoria_apertura():
         outfile = f"auditoria_apertura_{fecha.strftime('%Y-%m-%d')}.xlsx"
         pdfout = outfile.replace('.xlsx', '.pdf')
         df_res.to_excel(os.path.join(AUDITORIA_AP_FOLDER, outfile), index=False)
-        generar_pdf_apertura(df_res, os.path.join(REPORTES_PDF_FOLDER, pdfout))
+        pdf_bytes = generar_pdf_apertura(df_res, os.path.join(REPORTES_PDF_FOLDER, pdfout))
         st.success("Auditoría procesada y registrada.")
         st.dataframe(df_res)
         # USAR EL NUEVO PATRÓN PARA DESCARGA
-        st.download_button("Descargar auditoría (Excel)", data=to_excel_bytes(df_res),
-            file_name=outfile)
-        with open(os.path.join(REPORTES_PDF_FOLDER, pdfout), "rb") as f:
-            st.download_button("Descargar auditoría (PDF)", data=f, file_name=pdfout, mime="application/pdf")
+        st.download_button("Descargar auditoría (Excel)", data=to_excel_bytes(df_res), file_name=outfile)
+        st.download_button("Descargar auditoría (PDF)", data=pdf_bytes, file_name=pdfout, mime="application/pdf")
 
 def auditoria_cierre():
     st.title("Auditoría de Cierre")
@@ -192,9 +190,8 @@ def auditoria_cierre():
         outfile = f"auditoria_cierre_{fecha.strftime('%Y-%m-%d')}.xlsx"
         pdfout = outfile.replace('.xlsx', '.pdf')
         df_res.to_excel(os.path.join(AUDITORIA_CI_FOLDER, outfile), index=False)
-        generar_pdf_cierre(df_res, os.path.join(REPORTES_PDF_FOLDER, pdfout))
+        pdf_bytes = generar_pdf_cierre(df_res, os.path.join(REPORTES_PDF_FOLDER, pdfout))
         st.success("Auditoría de cierre procesada y registrada.")
         st.dataframe(df_res)
         st.download_button("Descargar auditoría (Excel)", data=to_excel_bytes(df_res), file_name=outfile)
-        with open(os.path.join(REPORTES_PDF_FOLDER, pdfout), "rb") as f:
-            st.download_button("Descargar auditoría (PDF)", data=f, file_name=pdfout, mime="application/pdf")
+        st.download_button("Descargar auditoría (PDF)", data=pdf_bytes, file_name=pdfout, mime="application/pdf")

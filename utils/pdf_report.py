@@ -38,7 +38,7 @@ class PDF(FPDF):
                 self.cell(col_widths[i], 8, val[:25], 1, 0, "C")
             self.ln()
 
-def generar_pdf_apertura(df, ruta_pdf):
+def generar_pdf_apertura(df, ruta_pdf=None):
     pdf = PDF()
     pdf.title = "Auditoría de Apertura de Inventario"
     pdf.add_page()
@@ -50,9 +50,13 @@ def generar_pdf_apertura(df, ruta_pdf):
     pdf.ln(6)
     pdf.set_font("Arial", "I", 10)
     pdf.cell(0, 10, "Auditoría generada automáticamente por el sistema de inventario.", ln=1)
-    pdf.output(ruta_pdf)
+    pdf_bytes = pdf.output(dest="S").encode("latin-1")
+    if ruta_pdf:
+        with open(ruta_pdf, "wb") as f:
+            f.write(pdf_bytes)
+    return pdf_bytes
 
-def generar_pdf_cierre(df, ruta_pdf):
+def generar_pdf_cierre(df, ruta_pdf=None):
     pdf = PDF()
     pdf.title = "Auditoría de Cierre de Inventario"
     pdf.add_page()
@@ -68,4 +72,8 @@ def generar_pdf_cierre(df, ruta_pdf):
     pdf.ln(6)
     pdf.set_font("Arial", "I", 10)
     pdf.cell(0, 10, "Auditoría generada automáticamente por el sistema de inventario.", ln=1)
-    pdf.output(ruta_pdf)
+    pdf_bytes = pdf.output(dest="S").encode("latin-1")
+    if ruta_pdf:
+        with open(ruta_pdf, "wb") as f:
+            f.write(pdf_bytes)
+    return pdf_bytes
