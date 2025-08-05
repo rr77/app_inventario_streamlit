@@ -1,171 +1,177 @@
-import streamlit as st
-import pandas as pd
 import os
 from datetime import datetime
-from utils.excel_tools import to_excel_bytes  # Agrega esta línea
-from utils.path_utils import (
-    CATALOGO_DIR,
-    RECETAS_DIR,
-    VENTAS_PROCESADAS_DIR,
-    latest_file,
-)
+
+import pandas as pd
+import streamlit as st
+
+from utils.excel_tools import to_excel_bytes
+from utils.path_utils import VENTAS_PROCESADAS_DIR
+from modules.catalogo import load_catalog
+from modules.recetas import load_recetas
+
 
 VENTAS_PROCESADAS_FOLDER = VENTAS_PROCESADAS_DIR
 
-VINERA_SUBCATEGORIAS = set([
-    "Blancos", "Tintos", "Espumantes", "Rosados", "Spirits & Wine"
-])
+PRODUCTO_NAMES = [
+    "producto vendido",
+    "item vendido",
+    "item",
+    "producto",
+    "descripcion",
+    "descripción",
+]
 
-def load_catalogo():
-    path = latest_file(CATALOGO_DIR, "catalogo")
-    return pd.read_excel(path) if path and os.path.exists(path) else pd.DataFrame()
+SUBCAT_NAMES = [
+    "subcategoria",
+    "subcategoría",
+    "subcategory",
+    "sub cat",
+    "subcat",
+    "línea",
+    "linea",
+]
 
-def load_recetas():
-    path = latest_file(RECETAS_DIR, "recetas")
-    if not path or not os.path.exists(path):
-        return pd.DataFrame(), pd.DataFrame()
-    xls = pd.ExcelFile(path)
-    recetas = pd.read_excel(xls, "Recetas")
-    reglas = pd.read_excel(xls, "ReglasEst")
-    return recetas, reglas
+CANTIDAD_NAMES = [
+    "cantidad",
+    "cantidad vendida",
+    "c. vendida",
+    "unidades",
+    "qty",
+]
 
-def inferir_ubicacion(row, catalogo):
-    prod = row["Producto vendido"]
-    subcat = ""
-    info = catalogo[catalogo["Item"] == prod]
-    if not info.empty:
-        subcat = str(info.iloc[0]["Subcategoría"])
-    if subcat in VINERA_SUBCATEGORIAS:
-        return "Vinera"
-    else:
-        return "Barra"
 
-def procesar_ventas(df_ventas, df_recetas, df_reglas, catalogo, fecha_asignada):
-    if "Producto vendido" not in df_ventas.columns:
-        if "Item" in df_ventas.columns:
-            df_ventas["Producto vendido"] = df_ventas["Item"]
-        else:
-            raise Exception("El archivo no tiene columna 'Producto vendido' ni 'Item'.")
-
-    if "Cantidad vendida" not in df_ventas.columns:
-        if "C. Vendida" in df_ventas.columns:
-            df_ventas["Cantidad vendida"] = df_ventas["C. Vendida"]
-        else:
-            df_ventas["Cantidad vendida"] = 1  # Por defecto
-
-    if "Fecha" not in df_ventas.columns:
-        df_ventas["Fecha"] = fecha_asignada
-
-    # Asigna la ubicación según subcategoría (regla especial)
-    df_ventas["Ubicación de salida"] = df_ventas.apply(
-        lambda r: inferir_ubicacion(r, catalogo), axis=1
+def seleccionar_columna(df: pd.DataFrame, label: str, posibles: list[str]) -> str:
+    posibles_lower = [p.lower() for p in posibles]
+    detected = next(
+        (c for c in df.columns if c.strip().lower() in posibles_lower), None
     )
+    index = df.columns.get_loc(detected) if detected in df.columns else 0
+    return st.selectbox(label, df.columns, index=index)
 
-    result = []
-    for idx, row in df_ventas.iterrows():
-        prod_vendido = row["Producto vendido"]
-        cantidad_vendida = row["Cantidad vendida"]
-        fecha = row["Fecha"]
-        ubic = row["Ubicación de salida"]
 
-        recetas_match = df_recetas[df_recetas["Producto vendido"] == prod_vendido]
-        if not recetas_match.empty:
-            for _, rec in recetas_match.iterrows():
-                item = rec["Item usado"]
-                subcat = rec["Subcategoría"]
-                cant_unit = rec["Cantidad usada"]
-                result.append({
-                    "Fecha": fecha,
-                    "Producto vendido": prod_vendido,
-                    "Item usado": item,
-                    "Subcategoría": subcat,
-                    "Cantidad teórica consumida": cant_unit * cantidad_vendida,
-                    "Ubicación de salida": ubic
-                })
-        else:
-            item_info = catalogo[catalogo["Item"] == prod_vendido]
-            if not item_info.empty:
-                subcat = item_info.iloc[0]["Subcategoría"]
-                regla = df_reglas[df_reglas["Subcategoría"] == subcat]
-                if not regla.empty:
-                    cant_std = regla.iloc[0]["Cantidad estándar usada"]
-                    result.append({
+def procesar_ventas(
+    df_ventas: pd.DataFrame,
+    prod_col: str,
+    subcat_col: str,
+    cant_col: str | None,
+    catalogo: pd.DataFrame,
+    recetas: pd.DataFrame,
+    fecha: datetime,
+) -> pd.DataFrame:
+    resultado: list[dict] = []
+
+    for _, row in df_ventas.iterrows():
+        nombre = str(row[prod_col]).strip()
+        subcat = str(row[subcat_col]).strip()
+        cantidad = row[cant_col] if cant_col else 1
+
+        match = catalogo[
+            (catalogo["Nombre"] == nombre) & (catalogo["Subcategoría"] == subcat)
+        ]
+        if match.empty:
+            st.warning(f"Producto '{nombre}' / '{subcat}' no está en el catálogo. Se omite.")
+            continue
+
+        tipo = match.iloc[0]["Tipo_venta"]
+        unidad = match.iloc[0]["Unidad"]
+
+        if tipo == "CTL":
+            receta = recetas[recetas["Producto_vendido"] == nombre]
+            if receta.empty:
+                st.warning(f"No hay receta para '{nombre}'. Se omite.")
+                continue
+            for _, ing in receta.iterrows():
+                resultado.append(
+                    {
                         "Fecha": fecha,
-                        "Producto vendido": prod_vendido,
-                        "Item usado": prod_vendido,
-                        "Subcategoría": subcat,
-                        "Cantidad teórica consumida": cant_std * cantidad_vendida,
-                        "Ubicación de salida": ubic
-                    })
-    return pd.DataFrame(result)
+                        "Producto_vendido": nombre,
+                        "Ingrediente": ing["Ingrediente"],
+                        "Unidad": ing["Unidad"],
+                        "Cantidad_consumida": ing["Cantidad_usada"] * cantidad,
+                    }
+                )
+        elif tipo == "BOT":
+            resultado.append(
+                {
+                    "Fecha": fecha,
+                    "Producto_vendido": nombre,
+                    "Ingrediente": nombre,
+                    "Unidad": unidad,
+                    "Cantidad_consumida": cantidad,
+                }
+            )
+        elif tipo == "TRG":
+            dosis = match.iloc[0]["Dosis_ml"]
+            resultado.append(
+                {
+                    "Fecha": fecha,
+                    "Producto_vendido": nombre,
+                    "Ingrediente": nombre,
+                    "Unidad": "ml",
+                    "Cantidad_consumida": dosis * cantidad,
+                }
+            )
+        else:
+            st.warning(f"Tipo_venta desconocido para '{nombre}'. Se omite.")
+
+    return pd.DataFrame(resultado)
+
 
 def ventas_module():
-    st.title("Procesador de Ventas (Consumo Teórico)")
+    st.title("Procesador de Ventas")
     st.info(
-        """Sube el Excel del POS (ventas del día).
-        El sistema calculará el consumo teórico de inventario usando las recetas y registrará todo en `data/ventas_procesadas/`.
-        El archivo POS puede tener cualquier cabecera: mapea automáticamente las columnas relevantes.
-
-        **Regla de ubicación de salida:**
-        Si la subcategoría es Blancos, Tintos, Espumantes, Rosados o Spirits & Wine: Vinera.
-        Si no: Barra.
-        """
+        """Sube el Excel del POS (ventas del día). El sistema usará el catálogo y
+        las recetas para calcular el consumo teórico de inventario. La identificación
+        de productos se realiza exclusivamente por Nombre y Subcategoría."""
     )
 
-    catalogo = load_catalogo()
+    catalogo = load_catalog()
     if catalogo.empty:
         st.warning("El catálogo está vacío. No se pueden procesar ventas.")
         return
 
-    df_recetas, df_reglas = load_recetas()
-    st.markdown(
-        """
-    **El archivo POS puede tener estas columnas:**
-    - Item (producto vendido)
-    - C. Vendida (cantidad vendida)
-    - (Opcional) Ubicación de salida
-    - (Opcional) Fecha (si no, se asigna aquí)
-    """
-    )
+    recetas = load_recetas(catalogo)
 
     fecha = st.date_input("Selecciona la fecha de las ventas", value=datetime.today())
-    archivo = st.file_uploader("Selecciona archivo Excel de ventas POS...", type=["xlsx"])
+    archivo = st.file_uploader("Selecciona archivo Excel de ventas...", type=["xlsx"])
 
     if archivo:
         try:
-            # Algunos archivos exportados del POS tienen la primera fila vacía y
-            # los nombres de columnas en la segunda fila. Intentamos cargar el
-            # Excel normalmente y, si no encontramos la columna "categoria",
-            # volvemos a leer usando la segunda fila como cabecera.
             df_ventas = pd.read_excel(archivo)
-            cat_col = next((c for c in df_ventas.columns if c.lower().strip() == "categoria"), None)
-            if cat_col is None:
-                # Reintenta asumiendo que la cabecera está en la segunda fila
-                df_ventas = pd.read_excel(archivo, header=1)
-                cat_col = next((c for c in df_ventas.columns if c.lower().strip() == "categoria"), None)
-            if cat_col is None:
-                st.error("El archivo de ventas debe tener una columna 'categoria'.")
-                return
-            df_ventas = df_ventas[
-                df_ventas[cat_col].astype(str).str.strip().str.lower() == "licores"
-            ]
-            st.dataframe(df_ventas)
-            if st.button("Procesar ventas y calcular consumo teórico"):
-                df_procesado = procesar_ventas(df_ventas, df_recetas, df_reglas, catalogo, fecha)
-                if not df_procesado.empty:
-                    output_file = f"ventas_procesadas_{fecha.strftime('%Y-%m-%d')}.xlsx"
-                    out_path = os.path.join(VENTAS_PROCESADAS_FOLDER, output_file)
-                    df_procesado.to_excel(out_path, index=False)
-                    st.success(f"Ventas procesadas. Archivo guardado como: {output_file}")
-                    st.dataframe(df_procesado)
-                    st.download_button(
-                        label="Descargar consumo teórico procesado",
-                        data=to_excel_bytes(df_procesado),
-                        file_name=output_file,
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    )
-                else:
-                    st.warning("No se procesó ninguna venta. ¿Están las recetas/reglas bien definidas?")
         except Exception as e:
-            st.error(f"Error procesando archivo de ventas: {e}")
+            st.error(f"Error leyendo archivo de ventas: {e}")
+            return
+
+        st.dataframe(df_ventas)
+
+        prod_col = seleccionar_columna(
+            df_ventas, "Columna de producto vendido", PRODUCTO_NAMES
+        )
+        subcat_col = seleccionar_columna(
+            df_ventas, "Columna de subcategoría", SUBCAT_NAMES
+        )
+        cant_col = seleccionar_columna(
+            df_ventas, "Columna de cantidad vendida", CANTIDAD_NAMES + ["(ninguna)"]
+        )
+        if cant_col == "(ninguna)":
+            cant_col = None
+
+        if st.button("Procesar ventas"):
+            df_proc = procesar_ventas(
+                df_ventas, prod_col, subcat_col, cant_col, catalogo, recetas, fecha
+            )
+            if df_proc.empty:
+                st.warning("No se generó consumo. Revisa los datos.")
+            else:
+                output_file = f"ventas_procesadas_{fecha.strftime('%Y-%m-%d')}.xlsx"
+                out_path = os.path.join(VENTAS_PROCESADAS_FOLDER, output_file)
+                df_proc.to_excel(out_path, index=False)
+                st.success(f"Ventas procesadas. Archivo guardado como: {output_file}")
+                st.dataframe(df_proc)
+                st.download_button(
+                    label="Descargar consumo teórico", 
+                    data=to_excel_bytes(df_proc),
+                    file_name=output_file,
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                )
 
