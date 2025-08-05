@@ -120,6 +120,7 @@ def auditoria_apertura():
                 "Diferencia": diferencia
             })
         df_res = pd.DataFrame(result)
+        df_res.rename(columns={"Apertura actual": "Conteo Apertura"}, inplace=True)
         outfile = f"auditoria_apertura_{fecha.strftime('%Y-%m-%d')}.xlsx"
         pdfout = outfile.replace('.xlsx', '.pdf')
         out_path = os.path.join(AUDITORIA_AP_FOLDER, outfile)
