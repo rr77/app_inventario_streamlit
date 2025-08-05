@@ -10,8 +10,10 @@ from utils.path_utils import (
     CIERRES_CONFIRMADOS_DIR,
     AUDITORIA_AP_DIR,
     AUDITORIA_CI_DIR,
+    REPORTES_PDF_DIR,
     latest_file,
 )
+from utils.pdf_report import generar_pdf_stock
 from modules.catalogo import load_catalog
 
 ENTRADAS_FOLDER = ENTRADAS_DIR
@@ -230,6 +232,9 @@ def stock_module():
     # ORDEN ASCENDENTE POR DEFECTO
     df_stock = df_stock.sort_values(by="Stock Botellas", ascending=True)
 
+    # Asegurar dos decimales en la columna de stock
+    df_stock["Stock Botellas"] = df_stock["Stock Botellas"].round(2)
+
     # Estilos visuales para resaltar situaciones críticas
     def color_estado(row):
         estado = row["Estado"]
@@ -241,7 +246,19 @@ def stock_module():
             return ["background-color: #fff5ba"] * len(row)
         return [""] * len(row)
 
-    st.dataframe(df_stock.style.apply(color_estado, axis=1), use_container_width=True)
+    st.dataframe(
+        df_stock.style.format({"Stock Botellas": "{:.2f}"}).apply(color_estado, axis=1),
+        use_container_width=True,
+    )
+
+    pdfout = "stock_actual.pdf"
+    pdf_bytes = generar_pdf_stock(df_stock, os.path.join(REPORTES_PDF_DIR, pdfout))
+    st.download_button(
+        label="Descargar Stock Actual (PDF)",
+        data=pdf_bytes,
+        file_name=pdfout,
+        mime="application/pdf",
+    )
 
     st.download_button(
         label="Descargar Stock Actual (Excel)",
